@@ -58,7 +58,7 @@ for _, c in components.iterrows():
         pos.append({"po": f"PO-{po_id}", "component_id": c.component_id, "supplier_id": c.supplier_id,
                     "month_index": m, "qty": round_to(r * cov)})
     comp_out.append({
-        "id": c.component_id, "name": c["name"], "supplier": c.supplier_id, "unitCost": c.unit_cost,
+        "id": c.component_id, "pn": c.part_number, "name": c["name"], "supplier": c.supplier_id, "unitCost": c.unit_cost,
         "leadMonths": int(c.lead_months), "moq": int(c.moq), "onHand": round_to(r * on_hand_cover),
         "alt": None if pd.isna(c.alt_supplier_id) else {"supplier": c.alt_supplier_id, "premium": c.alt_premium,
                                                          "leadMonths": int(c.alt_lead_months)},
@@ -94,6 +94,7 @@ app = {
     "history": history,
     "forecast": forecast,
     "backtest": bt,
+    "evaluation": json.loads((DATA / "evaluation.json").read_text()) if (DATA / "evaluation.json").exists() else None,
     "modelCard": json.loads((ROOT / "models" / "model_card.json").read_text()) if (ROOT / "models" / "model_card.json").exists() else None,
 }
 model_json = (ROOT / "models" / "forecast_model.json").read_text()

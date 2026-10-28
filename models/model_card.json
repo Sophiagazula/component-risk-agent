@@ -9,7 +9,7 @@
     0.9,
     0.95
   ],
-  "trained_at": "2026-10-28T17:02:40+00:00",
+  "trained_at": "2026-10-28T19:07:33+00:00",
   "git_commit": "local",
   "backtest": {
     "forecasts": 288,

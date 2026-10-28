@@ -11,7 +11,7 @@ head_end = body.index("</style>") + len("</style>")
 page = ('<!doctype html>\n<html lang="en">\n<head>\n' + body[:head_end] +
         '\n</head>\n<body>\n' + body[head_end:] + '\n</body>\n</html>\n')
 (DOCS / "index.html").write_text(page)
-for f in ["data.js", "model.js"]:
+for f in ["engine.js", "data.js", "model.js"]:
     shutil.copy(APP / f, DOCS / f)
 (DOCS / ".nojekyll").write_text("")
 print("docs/ ready")

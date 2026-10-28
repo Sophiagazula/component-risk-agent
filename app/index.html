@@ -105,7 +105,7 @@ th { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: u
 td.n, th.n { text-align: right; }
 tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background: var(--surface-2); }
-td.wrap { white-space: normal; min-width: 190px; }
+td.wrap { white-space: normal; min-width: 170px; }
 td .sub { display: block; font-size: 11px; color: var(--ink-3); }
 tr.best td { background: var(--good-soft); }
 tr.best td:first-child { box-shadow: inset 3px 0 0 var(--good); }
@@ -176,6 +176,7 @@ select { border: 1px solid var(--line-strong); background: var(--surface); borde
 .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 ul.clean { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); }
 ul.clean li { margin-bottom: 5px; }
+footer a { color: var(--accent); }
 footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 1px solid var(--line); }
 
 @media (max-width: 900px) {
@@ -196,7 +197,7 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
     <div class="top-row">
       <div class="brand">
         <h1>Component Risk Agent</h1>
-        <span class="sub">Connected-hardware supply chain · forecast → component risk → decision → action</span>
+        <span class="sub">Supply planning · October 2026 month-end</span>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="tag">Synthetic data</span>
@@ -205,7 +206,7 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
     </div>
     <nav class="steps" aria-label="Workflow steps">
       <a href="#forecast" data-tab="forecast"><span class="k">1</span>Demand forecast</a><span class="sep">›</span>
-      <a href="#risk" data-tab="risk"><span class="k">2</span>Component risk &amp; buy plan</a><span class="sep">›</span>
+      <a href="#risk" data-tab="risk"><span class="k">2</span>Shortages &amp; buy plan</a><span class="sep">›</span>
       <a href="#shock" data-tab="shock"><span class="k">3</span>Supplier shock</a><span class="sep">›</span>
       <a href="#agent" data-tab="agent"><span class="k">4</span>Agent actions</a><span class="sep">·</span>
       <a href="#method" data-tab="method"><span class="k">?</span>How it works</a>
@@ -223,13 +224,13 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
     <div class="lede">
       <div>
         <h2>Demand forecast by device</h2>
-        <p>Gradient-boosted quantile models give a range for every month, not one number. The range is what drives component buys, because long lead times mean the high end decides how much risk you carry.</p>
+        <p>P5–P95 by device, 1–6 months out. Backtested against naive baselines; ranges calibrated on held-out months.</p>
       </div>
     </div>
     <div class="card live">
       <div class="live-head">
         <div><h3>Re-forecast live with the trained model</h3>
-        <p class="hint" style="margin:2px 0 0">Add a deal to the weighted sales pipeline. The 7 LightGBM quantile models run in your browser and re-predict demand, then part risk, the buy plan, the supplier shock and the agent's actions all update.</p></div>
+        <p class="hint" style="margin:2px 0 0">Adds the deal to the weighted pipeline and re-runs the trained quantile models. Shortages, buy plan, supplier shock and agent actions update with it.</p></div>
         <span class="pill info" id="liveBadge"></span>
       </div>
       <div class="controls" style="margin-top:12px">
@@ -277,8 +278,8 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
   <section class="panel" id="p-risk" hidden>
     <div class="lede">
       <div>
-        <h2>Component shortage risk and buy plan</h2>
-        <p>Device forecasts are exploded through the bill of materials and simulated 3,000 times, including late supplier deliveries. Each part's buy quantity is set by the cost of being short versus the cost of holding too much.</p>
+        <h2>Shortages and buy plan</h2>
+        <p>Chance of running short before end of April, from 3,000 simulated futures including supplier lateness. Buy quantity from the critical ratio: cost of short vs. cost of holding.</p>
       </div>
     </div>
     <div class="card" style="margin-bottom:16px">
@@ -305,8 +306,8 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
   <section class="panel" id="p-shock" hidden>
     <div class="lede">
       <div>
-        <h2>Supplier shock: what breaks, and the cheapest fix</h2>
-        <p>Starts from the step 2 plan. Pick a supplier and a delay. The model rebuilds the monthly build plan, finds which devices get blocked by which parts, and scores each mitigation by margin protected minus its cost.</p>
+        <h2>Supplier shock</h2>
+        <p>Delays one supplier's open POs, reruns clear-to-build month by month on top of the step 2 plan, and scores each mitigation in margin.</p>
       </div>
     </div>
     <div class="card" style="margin-bottom:16px">
@@ -319,8 +320,8 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
     </div>
     <div class="grid-2">
       <div class="card">
-        <h3>Device revenue: demand vs. what can be built</h3>
-        <p class="hint">Do nothing vs. the recommended plan, by month. Hover for detail.</p>
+        <h3>Clear-to-build revenue vs. demand</h3>
+        <p class="hint">Do nothing vs. recommended plan, by month.</p>
         <div class="chart" id="shChart"></div>
         <div class="legend">
           <span><i class="line" style="background:var(--ink-2)"></i>Demand</span>
@@ -334,7 +335,7 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
     </div>
     <h3 style="margin:20px 0 8px;font-size:15px">Mitigation options</h3>
     <div class="tbl-wrap"><table id="optTable"></table></div>
-    <h3 style="margin:20px 0 8px;font-size:15px">Impact by device · do nothing</h3>
+    <h3 style="margin:20px 0 8px;font-size:15px">Constrained devices · do nothing</h3>
     <div class="tbl-wrap"><table id="impTable"></table></div>
   </section>
 
@@ -342,8 +343,8 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
   <section class="panel" id="p-agent" hidden>
     <div class="lede">
       <div>
-        <h2>Agent actions with tiered autonomy</h2>
-        <p>The agent acts alone only when an action is free and reversible. Spend goes to a planner up to a limit, and anything above it, or anything strategic, goes to a director. Every step is logged.</p>
+        <h2>Agent actions</h2>
+        <p>Free, reversible actions run automatically. Spend goes to a planner up to the limit, then to a director. Everything is logged.</p>
       </div>
       <div class="ctl"><label for="limit">Planner approval limit</label><div class="row"><input type="range" id="limit" min="50000" max="1000000" step="50000" value="250000"><output id="limitV"></output></div></div>
     </div>
@@ -363,7 +364,7 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
 
   <!-- METHOD -->
   <section class="panel" id="p-method" hidden>
-    <div class="lede"><div><h2>How it works</h2><p>A one-day prototype on synthetic data, retrained and redeployed by a CI pipeline with a quality gate. The point is the shape of the system: every step turns the previous step's output into a decision with dollars attached.</p></div></div>
+    <div class="lede"><div><h2>How it works</h2><p>Prototype on synthetic data. Decisions, alternatives considered and trade-offs are in DESIGN.md in the repo.</p></div></div>
     <div class="flow" style="grid-template-columns:repeat(5,minmax(0,1fr))">
       <div><span class="k">01 · PREDICT</span><b>Probabilistic demand</b><span>Global LightGBM quantile models, P5–P95, calibrated on held-out months. Trained in Python, run live in the browser.</span></div>
       <div><span class="k">02 · EXPLODE</span><b>Bill of materials</b><span>Device demand → part demand. Shared parts link devices together.</span></div>
@@ -401,11 +402,18 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
         </ul>
       </div>
       <div class="card">
+        <h3>Evaluation</h3>
+        <p class="hint">Same 8-origin backtest. Full tables in reports/evaluation.md.</p>
+        <div class="tbl-wrap" style="margin-top:6px"><table id="ablation"></table></div>
+        <div class="tbl-wrap" style="margin-top:12px"><table id="reliab"></table></div>
+      </div>
+      <div class="card">
         <h3>Known limitations</h3>
         <ul class="clean">
           <li>All data is synthetic. Product, part and supplier names are generic.</li>
           <li>The environmental sensor is intermittent and the model loses to seasonal naive there. In production I'd forecast it with a Croston-style method or at a higher level.</li>
-          <li>Finished-goods stock, multi-site allocation and supplier capacity limits are left out.</li>
+          <li>Calibration is uneven: the upper tail is close (P90 → 89%), the lower tail is too wide (P10 → 2%). Next step is a separate factor per tail.</li>
+          <li>Finished-goods stock, multi-site allocation, supplier capacity and budget limits are left out. Monthly buckets; real near-term planning is weekly.</li>
           <li>The agent briefing is generated from templates so every number is traceable. In production, an LLM would draft the wording from the same numbers.</li>
           <li>No live data feed or backend service: models are retrained in CI and served as static files. Production would add a warehouse connection, a model registry such as MLflow, drift monitoring and an API for the decision engine.</li>
         </ul>
@@ -414,8 +422,9 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
   </section>
 </main>
 
-<div class="wrap"><footer>Prototype by Sophia Gazula · built with Python (LightGBM, pandas) and a plain JavaScript front end, using Claude Code · synthetic data only</footer></div>
+<div class="wrap"><footer>Sophia Gazula · Prototype on synthetic data · <a href="https://github.com/Sophiagazula/component-risk-agent">Code, tests and design notes on GitHub</a></footer></div>
 
+<script src="engine.js"></script>
 <script src="model.js"></script>
 <script src="data.js"></script>
 <script>
@@ -439,31 +448,16 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 
 // ------------------------------------------------------------ quantiles
 const QK = D.quantiles;
-function qAt(qs, u) {
-  u = Math.min(0.995, Math.max(0.005, u));
-  if (u <= QK[0]) return Math.max(0, qs[0] - (QK[0] - u) * (qs[1] - qs[0]) / (QK[1] - QK[0]));
-  if (u >= QK[QK.length - 1]) { const n = QK.length - 1; return qs[n] + (u - QK[n]) * (qs[n] - qs[n - 1]) / (QK[n] - QK[n - 1]); }
-  for (let i = 1; i < QK.length; i++) if (u <= QK[i]) return qs[i - 1] + (u - QK[i - 1]) * (qs[i] - qs[i - 1]) / (QK[i] - QK[i - 1]);
-}
-function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const qAt = (qs, u) => Engine.qAt(qs, u, QK);
+const { mulberry32, Phi, walk } = Engine;
 let rnd = mulberry32(20261029);
 const randn = () => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-const Phi = x => { const t = 1 / (1 + 0.2316419 * Math.abs(x)); const d = 0.3989423 * Math.exp(-x * x / 2); const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; };
 
 // ------------------------------------------- live forecast: the trained LightGBM models, run in the browser
 const FM = window.FORECAST_MODEL, TREES = FM.models.reduce((s, m) => s + m.length, 0);
 const BATCH = D.forecast;                       // what the Python pipeline wrote, used as a parity check
 const DEALS = [];                               // pipeline what-if: { pid, k, units, prob }
 const LIVE = { ms: 0, parity: 0, runs: 0 };
-function walk(trees, x) {
-  let s = 0;
-  for (const t of trees) {
-    let n = t.root;
-    while (n >= 0) { const f = x[t.f[n]]; n = (t.c[n] ? t.c[n].includes(f) : f <= t.t[n]) ? t.l[n] : t.r[n]; }
-    s += t.v[~n];
-  }
-  return s;
-}
 const lg = v => Math.log1p(v), mean = a => a.reduce((s, v) => s + v, 0) / a.length;
 function featuresFor(pi, k, extraPipe) {
   const p = P[pi], y = D.history[p.id], i = y.length - 1, h = k + 1, base = lg(mean(y.slice(i - 11)));
@@ -482,9 +476,7 @@ function runForecast() {
   P.forEach((p, pi) => {
     out[p.id] = D.forecastMonths.map((_, k) => {
       const { x, base } = featuresFor(pi, k, extra[p.id]?.[k] || 0);
-      const lq = FM.models.map(trees => walk(trees, x) + base).sort((a, b) => a - b);
-      const mid = lq[3];                                   // calibrated spread around the median
-      return lq.map(v => Math.max(0, Math.expm1(mid + (v - mid) * FM.scale)));
+      return Engine.predictQuantiles(FM, x, base);         // sorted, calibrated around the median
     });
   });
   LIVE.ms = performance.now() - t0; LIVE.runs++;
@@ -533,7 +525,7 @@ C.forEach(c => {
   c.marginPerUnit = m / w;
 });
 }
-const sq = (arr, q) => arr[Math.min(arr.length - 1, Math.floor(q * arr.length))];
+const sq = Engine.sortedQuantile;
 
 // shortage probability for a part under a plan: pull-ins {po: months earlier}, extra arrivals {monthIdx: qty}
 function evalShort(c, pull, extra) {
@@ -559,12 +551,11 @@ function expCost(c, q, cu, co) {
 }
 function buyPlan() {
   return C.map(c => {
-    const cu = A.pLost * c.marginPerUnit + (1 - A.pLost) * c.unitCost * c.expeditePremium;
-    const co = c.unitCost * (A.hold * c.protect / 12 + A.obs);
-    const cr = cu / (cu + co);
+    const { cu, co, cr } = Engine.criticalRatio({ pLost: A.pLost, marginPerUnit: c.marginPerUnit, unitCost: c.unitCost,
+      expeditePremium: c.expeditePremium, holdRate: A.hold, months: c.protect, obsolescence: A.obs });
     const target = sq(MC[c.id].reqProt, cr), ip = c.onHand + c.openTotal;
-    let q = Math.max(0, target - ip); if (q > 0) q = Math.ceil(q / c.moq) * c.moq;
-    let q50 = Math.max(0, sq(MC[c.id].reqProt, 0.5) - ip); if (q50 > 0) q50 = Math.ceil(q50 / c.moq) * c.moq;
+    const q = Engine.roundUpToMoq(Math.max(0, target - ip), c.moq);
+    const q50 = Engine.roundUpToMoq(Math.max(0, sq(MC[c.id].reqProt, 0.5) - ip), c.moq);
     const pShort = MC[c.id].short / N;
     const fs = MC[c.id].firstShort; let fsMonth = null, best = 0; fs.forEach((v, k) => { if (v > best) { best = v; fsMonth = k; } });
     // timing fix: if risk stays high after the buy, pull open orders in by a month, earliest first
@@ -781,9 +772,9 @@ function renderRisk() {
   $("#riskTable").innerHTML = `<thead><tr><th>Part</th><th>Supplier</th><th class="n">On hand + on order</th><th class="n">6-mo need P50 / P90</th><th>Shortage risk</th><th>Recommended action</th><th>Risk after</th></tr></thead><tbody>` +
     rows.map(r => { const [cls, lab] = status(r.pShort); const s = supById[r.c.supplier];
       const col = cls === "crit" ? "var(--crit)" : cls === "warn" ? "var(--warn)" : "var(--good)";
-      return `<tr><td><b>${esc(r.c.name)}</b><span class="sub mono">${r.c.id} · $${r.c.unitCost.toFixed(2)} · ${r.c.leadMonths} mo lead</span></td>
-      <td class="wrap" style="min-width:160px">${esc(s.name)}${r.c.single ? ' <span class="flag">· single source</span>' : ""}<span class="sub">${esc(s.region)} · ${pct(s.onTime)} on time</span></td>
-      <td class="n">${fmtK(r.c.onHand + r.c.openTotal)}<span class="sub">${fmtK(r.c.onHand)} + ${fmtK(r.c.openTotal)}</span></td>
+      return `<tr><td><b>${esc(r.c.name)}</b><span class="sub mono">PN ${esc(r.c.pn)} · $${r.c.unitCost.toFixed(2)} · ${r.c.leadMonths} mo LT</span></td>
+      <td class="wrap" style="min-width:150px;max-width:190px">${esc(s.name)}${r.c.single ? ' <span class="flag">· single source</span>' : ""}<span class="sub">${esc(s.region)} · ${pct(s.onTime)} on time</span></td>
+      <td class="n">${fmtK(r.c.onHand + r.c.openTotal)}<span class="sub">${fmtK(r.c.onHand)} + ${fmtK(r.c.openTotal)}</span><span class="sub">${(r.c.onHand / (r.need50 / 26)).toFixed(1)} wks on hand</span></td>
       <td class="n">${fmtK(r.need50)} / ${fmtK(r.need90)}</td>
       <td><span class="prob"><span class="pill ${cls}">${lab}</span><span class="b"><span style="width:${r.pShort * 100}%;background:${col}"></span></span><span class="mono">${pct(r.pShort)}</span></span>${r.fsMonth === null ? "" : `<span class="sub">most often short first in ${MLABY(D.forecastMonths[r.fsMonth])}</span>`}</td>
       <td class="wrap">${actionText(r)}</td>
@@ -798,11 +789,14 @@ function renderRisk() {
   const hi = rows.filter(r => r.pShort >= 0.4), buyTot = tot("value"), pullTot = tot("pullCost");
   const hiAfter = rows.filter(r => r.after >= 0.4).length, timing = rows.filter(r => r.pulls.length && r.q === 0);
   const cheap = rows.filter(r => r.q > 0 && r.c.unitCost < 5);
-  $("#riskCallout").innerHTML = `<b>What this says.</b> ${hi.length} part${hi.length === 1 ? "" : "s"} ${hi.length === 1 ? "has" : "have"} a 40%+ chance of running short before April${hi.length ? ": " + hi.map(r => esc(lc(r.c.name))).join(", ") : ""}. After the plan, ${hiAfter} ${hiAfter === 1 ? "does" : "do"}. The plan spends ${usd(buyTot)} on new buys and ${usd(pullTot)} on expediting.` +
-    (timing.length ? `<br><br><b>Timing, not quantity.</b> For ${timing.map(r => esc(lc(r.c.name))).join(", ")}, enough is already on order but it lands too late, so the fix is pulling orders in, not buying more.` : "") +
-    `<br><br><b>Quantity.</b> The cost-based buy rule cuts expected cost from ${usd(none)} (do nothing) to ${usd(rec)}, ${usd(p50 - rec)} less than buying to the median forecast.` +
-    (cheap.length ? `<br><br>Cheap parts that block expensive devices get a high critical ratio, so the plan buys deep on them (${cheap.map(r => esc(lc(r.c.name))).join(", ")}). Expensive parts get a tighter buffer.` : "") +
-    `<br><br>Raise <b>short orders lost</b> and the plan buys more; raise <b>obsolescence risk</b> and it buys less.`;
+  const li = x => `<li>${x}</li>`;
+  $("#riskCallout").innerHTML = `<h3 style="font-size:14px;margin:0 0 6px;color:var(--ink)">Plan summary</h3><ul class="clean" style="margin:0">` +
+    li(`High risk (40%+): <b>${hi.length}</b>${hi.length ? ` (${hi.map(r => esc(lc(r.c.name))).join(", ")})` : ""} → <b>${hiAfter}</b> after plan`) +
+    li(`New buys <b>${usd(buyTot)}</b> · expediting <b>${usd(pullTot)}</b>`) +
+    (timing.length ? li(`On order but lands late: ${timing.map(r => esc(lc(r.c.name))).join(", ")}. Pull in, don't buy more.`) : "") +
+    li(`Expected cost ${usd(none)} do nothing → <b>${usd(rec)}</b> with plan (${usd(p50 - rec)} below buying to P50)`) +
+    (cheap.length ? li(`Bought deep (cheap part, expensive device): ${cheap.map(r => esc(lc(r.c.name))).join(", ")}`) : "") +
+    `</ul>`;
   renderKpis();
 }
 
@@ -824,7 +818,7 @@ function renderShock() {
     <p style="margin:12px 0 0;color:var(--ink-2);font-size:13px">${S.delay === 0 ? "No delay applied. This is the base plan." : `With ${esc(lc(best.name))}, revenue not shipped by April falls to ${usd(best.r.revAtRisk)} and late revenue to ${usd(best.r.lateRev)}, for ${usd(best.r.cost)} of spend.`}${!SC.hasAlt && S.delay > 0 ? " No qualified second source exists for these parts, which is itself a finding." : ""}</p>`;
   $("#optTable").innerHTML = `<thead><tr><th>Option</th><th class="n">Not shipped by Apr</th><th class="n">Shipped late</th><th class="n">Margin at risk</th><th class="n">Cost</th><th class="n">Net value</th></tr></thead><tbody>` +
     res.map(x => `<tr class="${x === best ? "best" : ""}"><td><b>${esc(x.name)}</b>${x === best ? ' <span class="pill good">Recommended</span>' : ""}<span class="sub">${esc(x.desc)}</span></td><td class="n">${usd(x.r.revAtRisk)}</td><td class="n">${usd(x.r.lateRev)}</td><td class="n">${usd(x.r.marginAtRisk)}</td><td class="n">${usd(x.r.cost)}</td><td class="n"><b>${x.id === "none" ? "—" : usd(x.value)}</b></td></tr>`).join("") + "</tbody>";
-  $("#impTable").innerHTML = `<thead><tr><th>Device</th><th>Blocked by</th><th class="n">Units shipped late</th><th class="n">Units not shipped by Apr</th><th class="n">Revenue delayed or lost</th></tr></thead><tbody>` +
+  $("#impTable").innerHTML = `<thead><tr><th>Device</th><th>Constraining part</th><th class="n">Units shipped late</th><th class="n">Units not shipped by Apr</th><th class="n">Revenue delayed or lost</th></tr></thead><tbody>` +
     P.map((p, i) => ({ p, i, bl: base.endBacklog[i], v: (base.endBacklog[i] + base.late[i]) * p.revenue })).sort((a, b) => b.v - a.v).map(({ p, i, bl, v }) => {
       const bind = base.binding[p.id] ? [...base.binding[p.id]].map(id => esc(lc(compById[id].name))).join(", ") : "—";
       return `<tr><td><b>${esc(p.name)}</b></td><td>${bind}</td><td class="n">${fmtInt(base.late[i])}</td><td class="n">${fmtInt(bl)}</td><td class="n">${usd(v)}</td></tr>`; }).join("") + "</tbody>";
@@ -948,11 +942,20 @@ function initDeals() {
 
 // ------------------------------------------------------------ wiring
 function renderMethod() {
-  const o = D.backtest.overall, mc = D.modelCard;
+  const o = D.backtest.overall, mc = D.modelCard, ev = D.evaluation;
+  if (ev) {
+    $("#ablation").innerHTML = `<thead><tr><th>Feature ablation (P50)</th><th class="n">WAPE</th><th class="n">vs. all</th></tr></thead><tbody>` +
+      ev.ablation.map(a => `<tr><td style="white-space:normal">${esc(a.variant)}</td><td class="n">${pct(a.wape, 1)}</td><td class="n">${Math.abs(a.change_vs_full) < 0.0005 ? "0.0%" : (a.change_vs_full > 0 ? "+" : "−") + pct(Math.abs(a.change_vs_full), 1)}</td></tr>`).join("") + "</tbody>";
+    const rq = Object.keys(ev.reliability.raw);
+    $("#reliab").innerHTML = `<thead><tr><th>Actuals below quantile</th>${rq.map(q => `<th class="n">P${Math.round(q * 100)}</th>`).join("")}</tr></thead><tbody>` +
+      ["raw", "calibrated"].map(k => `<tr><td>${k === "raw" ? "Raw model" : "Calibrated"}</td>${rq.map(q => `<td class="n">${pct(ev.reliability[k][q])}</td>`).join("")}</tr>`).join("") + "</tbody>";
+  }
   $("#pipeSteps").innerHTML = [
     "<b>Build data</b>: demand history, sales pipeline snapshots, bill of materials, suppliers.",
     "<b>Train</b>: 7 LightGBM quantile models on all origins observable at forecast time.",
     `<b>Backtest + calibrate</b>: ${o.n} rolling forecasts; interval spread fitted on earlier held-out months.`,
+    "<b>Tests</b>: no-leakage check, data integrity, browser engine vs. LightGBM parity, decision-rule sanity checks (18 tests).",
+    "<b>Ablation</b>: retrain without each feature group to confirm every signal earns its place.",
     `<b>Quality gate</b>: release only if the model beats the best baseline by 10%+, bias is under 15% and P10–P90 coverage is 70–95%.` +
       (mc ? ` Last run: ${mc.gate.map(g => `${g.passed ? "pass" : "fail"} (${esc(g.value)})`).join(", ")}.` : ""),
     "<b>Export</b>: models saved as LightGBM text files plus a compact tree file the browser runs; model card written.",

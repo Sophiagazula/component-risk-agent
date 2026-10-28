@@ -1,82 +1,84 @@
 # Component Risk Agent
 
-**From probabilistic demand forecasts to component shortage risk, cost-based buy decisions and a tiered-autonomy agent, for a connected-hardware supply chain.**
+![Train, gate and deploy](https://github.com/Sophiagazula/component-risk-agent/actions/workflows/train-and-deploy.yml/badge.svg)
+
+Which parts will run short, what is the cheapest fix, and who should approve it. A prototype for a connected-hardware supply chain: probabilistic device forecasts, part-level shortage risk, cost-based buy and expedite decisions, supplier-delay scenarios, and an agent with tiered approvals.
 
 **Live demo:** https://sophiagazula.github.io/component-risk-agent/
+**Design notes:** [DESIGN.md](DESIGN.md) · **Evaluation:** [reports/evaluation.md](reports/evaluation.md)
 
-> All data is synthetic. Product, part and supplier names are generic.
+All data is synthetic. Product, part and supplier names are generic.
 
-## Why this exists
+## How it works
 
-In hardware, supply chains rarely break at the finished-goods level. They break when one long-lead component (a modem, a camera module, a battery cell) blocks thousands of devices. This prototype follows that problem end to end:
+1. **Forecast.** LightGBM quantile models (P5–P95), one per quantile, trained across all devices, 1–6 months ahead. The weighted sales pipeline is the main leading signal. Ranges are calibrated on held-out months.
+2. **Explode.** Device demand goes through the bill of materials to part demand. Shared parts link devices.
+3. **Simulate.** 3,000 futures with correlated demand and supplier lateness give each part's chance of running short.
+4. **Decide.** Newsvendor critical ratio per part sets the buy. When the problem is timing rather than quantity, open POs are pulled in instead.
+5. **Stress test.** Delay a supplier, rerun clear-to-build month by month, score mitigations in margin.
+6. **Act.** Free, reversible actions run automatically; spend goes to a planner or director; everything is logged.
 
-| Step | What it does | Method |
-|---|---|---|
-| 1. Predict | Forecast each device 1–6 months ahead as a range (P5–P95) | Global LightGBM quantile models, direct multi-horizon, sales pipeline as a leading signal, conformal-style interval calibration. Trained in Python; the trained trees are exported and run live in the browser, so a what-if pipeline deal re-forecasts demand instantly |
-| 2. Explode | Turn device demand into part demand | Bill of materials with shared parts |
-| 3. Simulate | Probability each part runs short before the horizon ends | 3,000 Monte Carlo runs: correlated demand + supplier lateness |
-| 4. Decide | How much to buy, and when to pull orders in | Newsvendor critical ratio per part (cost of short vs. cost of holding); pull-ins when the problem is timing, not quantity |
-| 5. Stress | What a supplier delay breaks, and the cheapest fix | Monthly build simulation; options scored by margin protected minus cost |
-| 6. Act | Who approves what | Tiered autonomy: auto for free and reversible actions, planner up to a spend limit, director above it or for strategic calls; audit log |
+The trained trees are exported and evaluated in the browser, so adding a what-if deal re-forecasts demand and updates everything downstream.
 
-## Results (synthetic backtest)
+## Results
 
-- 288 forecasts over 8 rolling origins, 1–6 months ahead
-- **WAPE 20%** vs. 43% for same-month-last-year and 45% for a 3-month moving average
-- Bias −7%
-- Raw quantile intervals covered 68% of actuals; after calibration on earlier held-out origins, **P10–P90 covers 87%** of backtest actuals (target 80%)
-- Known weakness: the intermittent environmental sensor, where the model loses to seasonal naive. In production I would use a Croston-style method or forecast at a higher level.
+Rolling backtest, 288 forecasts (8 origins × 6 horizons × 6 devices):
 
-## Training and deployment (MLOps)
+| | WAPE |
+|---|---|
+| This model | 20.3% |
+| Same month last year | 42.5% |
+| 3-month moving average | 45.4% |
 
-`.github/workflows/train-and-deploy.yml` runs on every push, on demand, and on the 1st of each month:
+- Bias −7%. P10–P90 coverage 68% raw, 87% after calibration.
+- Removing the sales pipeline raises WAPE to 35.5%. Calendar month adds nothing.
+- Weak spot: the intermittent environmental sensor, where the model loses to seasonal naive.
 
-1. **Build data**: `src/simulate_supply_chain.py`
-2. **Train + backtest + calibrate**: `src/forecast.py` trains 7 quantile models, runs a rolling-origin backtest and fits the interval calibration
-3. **Quality gate**: `src/quality_gate.py` releases the model only if it beats the best baseline by 10%+, |bias| < 15% and P10–P90 coverage is 70–95%. A failure stops the pipeline, so the previous version stays live
-4. **Export**: models saved as LightGBM text files (`models/quantile_qXX.txt`), a compact tree file for browser inference (`models/forecast_model.json`), and a model card (`models/model_card.json`). Browser inference matches LightGBM's own predictions to within 1e-6
-5. **Deploy**: the site is rebuilt and published to GitHub Pages; models and the model card are kept as a build artifact
+## Pipeline
 
-To enable it: **Settings → Pages → Source: GitHub Actions**.
+`.github/workflows/train-and-deploy.yml` runs on every push, on demand and monthly:
 
-## Live what-if
+build data → train + backtest → tests → feature ablation → quality gate → export → deploy
 
-On the Demand forecast step, add a deal to the weighted sales pipeline (device, close month, size, win probability). The model re-predicts all quantiles in the browser (~2,100 trees in a few milliseconds), then part risk, the buy plan, the supplier-shock analysis and the agent's action queue all update.
+The gate releases a model only if it beats the best naive baseline by 10%+, absolute bias is under 15% and P10–P90 coverage is 70–95%. A failed step stops the run and the previous version stays live. Each run posts the gate and evaluation tables to its summary page and keeps the models and model card as artifacts.
 
-## Run it
+## Tests
 
 ```bash
-pip install -r requirements.txt
-python src/simulate_supply_chain.py   # synthetic demand, pipeline, BOM, suppliers
-python src/forecast.py                # quantile models + backtest + calibration + model export
-python src/quality_gate.py            # release checks + model card
-python src/export_app_data.py         # inventory position + app/data.js + app/model.js
-python src/build_site.py              # docs/ for GitHub Pages
+pytest -q tests                       # leakage, data integrity, exported trees vs LightGBM, forecast sanity
+node --test tests/engine.test.mjs     # browser engine: parity with LightGBM, quantiles, critical ratio, MOQ
 ```
 
-Open `docs/index.html` in a browser, or serve it: `python -m http.server -d docs`.
+The leakage test scrambles every month after the forecast origin and checks no feature changes.
 
-## Repo layout
+## Run locally
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+python src/simulate_supply_chain.py
+python src/forecast.py
+pytest -q tests && node --test tests/engine.test.mjs
+python src/evaluate.py
+python src/quality_gate.py
+python src/export_app_data.py
+python src/build_site.py
+python -m http.server -d docs
+```
+
+## Layout
 
 ```
-src/simulate_supply_chain.py   synthetic supply chain
-src/forecast.py                LightGBM quantile forecast, backtest, calibration, model export
+src/model.py                   features, training, calibration, tree export (shared)
+src/simulate_supply_chain.py   synthetic demand, pipeline, BOM, suppliers
+src/forecast.py                backtest, calibration, final models, export
+src/evaluate.py                feature ablation and evaluation report
 src/quality_gate.py            release checks and model card
-src/export_app_data.py         inventory position and app data export
-.github/workflows/             CI: train, gate, deploy
+src/export_app_data.py         inventory position and app data
+src/build_site.py              static site for GitHub Pages
+app/engine.js                  pure calculations used by the app and tests
+app/index.html                 the app
+tests/                         pytest and node tests
 models/                        saved models, browser model file, model card
-src/build_site.py              builds docs/ for GitHub Pages
-app/index.html                 the web app (forecast, risk, shock, agent)
-data/                          generated CSVs and backtest summary
-docs/                          published site
+reports/evaluation.md          ablation, error by horizon, calibration
+DESIGN.md                      decisions, alternatives, limitations
 ```
-
-## What would change with real data
-
-- ERP orders and shipments, BOMs from PLM, supplier commit dates from planning tools
-- CRM pipeline and customer rollout schedules as the leading demand signal; installed-base telemetry for replacement demand
-- Supplier lateness learned per supplier and lane from receipt history
-- Validate against numbers Finance already trusts before any recommendation reaches a planner
-- An LLM drafts the agent briefing from the same numbers; decisions stay with the model + policy + human approval
-
-Built in a day with Python and plain JavaScript, using Claude Code.

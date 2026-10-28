@@ -119,6 +119,11 @@ BOM = {
     "TAG-AST": {"MCU-LP": 1, "BLE": 1, "BATT": 1},
     "SNS-ENV": {"MCU-LP": 1, "BLE": 1, "BATT": 2, "SNS-ARR": 1},
 }
+PART_NUMBERS = {"LTE-MOD": "412-00118", "SOC-AP": "412-00231", "MCU-LP": "412-00307", "CAM-FWD": "520-00044",
+                "CAM-IR": "520-00051", "GNSS": "412-00402", "BLE": "412-00415", "ENC-GW": "610-00012",
+                "ENC-CAM": "610-00021", "BATT": "705-00009", "SNS-ARR": "530-00063", "FLASH": "412-00520"}
+components_df["part_number"] = components_df.component_id.map(PART_NUMBERS)
+
 bom_df = pd.DataFrame([{"product_id": p, "component_id": c, "qty_per": q} for p, d in BOM.items() for c, q in d.items()])
 
 demand_df.to_csv(OUT / "demand_history.csv", index=False)

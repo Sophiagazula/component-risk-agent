@@ -39,6 +39,16 @@ card = {
 
 for n, ok, v in checks:
     print(f"{'PASS' if ok else 'FAIL'}  {n}: {v}")
+
+# Show the gate on the GitHub Actions run page
+if os.environ.get("GITHUB_STEP_SUMMARY"):
+    md = ["## Quality gate: " + ("released" if passed else "blocked"), "", "| Check | Result | Value |", "|---|---|---|"]
+    md += [f"| {n} | {'pass' if ok else 'FAIL'} | {v} |" for n, ok, v in checks]
+    report = ROOT / "reports" / "evaluation.md"
+    if report.exists():
+        md += ["", report.read_text()]
+    with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+        f.write("\n".join(md) + "\n")
 if not passed:
     print("Quality gate failed: model not released.")
     sys.exit(1)
