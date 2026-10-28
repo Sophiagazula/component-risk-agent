@@ -1,0 +1,72 @@
+name: Train, gate and deploy
+
+# Retrains the forecast, checks it against baselines, and only then
+# republishes the app. Runs on every push, on demand, and monthly.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 1 * *"   # 06:17 UTC on the 1st of each month
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build data
+        run: python src/simulate_supply_chain.py
+
+      - name: Train models and backtest
+        run: python src/forecast.py
+
+      - name: Quality gate
+        run: python src/quality_gate.py
+
+      - name: Export app data and model
+        run: python src/export_app_data.py
+
+      - name: Build site
+        run: python src/build_site.py
+
+      - name: Save models and model card
+        uses: actions/upload-artifact@v4
+        with:
+          name: models-${{ github.sha }}
+          path: |
+            models/
+            data/backtest_summary.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: train
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
