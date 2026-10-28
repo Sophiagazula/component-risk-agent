@@ -1,0 +1,52 @@
+{
+  "model": "LightGBM quantile regression, global across devices, direct 1-6 month horizon",
+  "quantiles": [
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "trained_at": "2026-10-28T17:02:40+00:00",
+  "git_commit": "local",
+  "backtest": {
+    "forecasts": 288,
+    "origins": [
+      "2025-09",
+      "2025-10",
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04"
+    ],
+    "wape": 0.20325947846471665,
+    "wape_seasonal_naive": 0.4250438589610248,
+    "wape_moving_avg": 0.45359163592771046,
+    "bias": -0.07241624347906325,
+    "coverage_raw": 0.6840277777777778,
+    "coverage_calibrated": 0.8680555555555556
+  },
+  "interval_scale": 1.4,
+  "gate": [
+    {
+      "check": "Beats best baseline by 10%+ (WAPE)",
+      "passed": true,
+      "value": "0.203 vs 0.425"
+    },
+    {
+      "check": "Absolute bias under 15%",
+      "passed": true,
+      "value": "-0.072"
+    },
+    {
+      "check": "P10-P90 coverage between 70% and 95%",
+      "passed": true,
+      "value": "0.87"
+    }
+  ],
+  "released": true
+}

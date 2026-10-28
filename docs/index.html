@@ -135,6 +135,17 @@ select { border: 1px solid var(--line-strong); background: var(--surface); borde
 .seg button { border: 0; background: var(--surface); padding: 6px 10px; cursor: pointer; color: var(--ink-2); font-size: 13px; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
 
+.card.live { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-soft); margin-bottom: 4px; }
+.live-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.live-head p { max-width: 75ch; }
+.num-in { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 6px; padding: 6px 8px; width: 120px; font-family: var(--font-mono); }
+.deals { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.deals:empty { display: none; }
+.deal { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent); border-radius: 99px; padding: 4px 6px 4px 12px; font-size: 13px; font-weight: 600; }
+.deal button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 6px; border-radius: 99px; }
+.deal button:hover { background: var(--surface); }
+.impact { margin-top: 12px; padding: 10px 12px; background: var(--surface-2); border-radius: 6px; color: var(--ink-2); font-size: 13px; }
+.impact b { color: var(--ink); }
 .callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--surface); border-radius: var(--radius); padding: 12px 14px; color: var(--ink-2); }
 .callout b { color: var(--ink); }
 
@@ -221,7 +232,23 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
         <p>Gradient-boosted quantile models give a range for every month, not one number. The range is what drives component buys, because long lead times mean the high end decides how much risk you carry.</p>
       </div>
     </div>
-    <div class="chips" id="prodChips" role="group" aria-label="Device"></div>
+    <div class="card live">
+      <div class="live-head">
+        <div><h3>Re-forecast live with the trained model</h3>
+        <p class="hint" style="margin:2px 0 0">Add a deal to the weighted sales pipeline. The 7 LightGBM quantile models run in your browser and re-predict demand, then part risk, the buy plan, the supplier shock and the agent's actions all update.</p></div>
+        <span class="pill info" id="liveBadge"></span>
+      </div>
+      <div class="controls" style="margin-top:12px">
+        <div class="ctl"><label for="dlDev">Device</label><select id="dlDev"></select></div>
+        <div class="ctl"><label for="dlMonth">Expected close</label><select id="dlMonth"></select></div>
+        <div class="ctl"><label for="dlUnits">Deal size (units)</label><input id="dlUnits" class="num-in" type="number" min="500" max="100000" step="500" value="12000"></div>
+        <div class="ctl"><label for="dlProb">Win probability</label><div class="row"><input type="range" id="dlProb" min="0.1" max="1" step="0.05" value="0.7"><output id="dlProbV"></output></div></div>
+        <div class="ctl" style="flex-direction:row;display:flex;gap:8px"><button class="btn primary" id="dlAdd">Add deal and re-forecast</button><button class="btn" id="dlReset" hidden>Reset</button></div>
+      </div>
+      <div id="dealList" class="deals"></div>
+      <div id="dealImpact" class="impact" hidden></div>
+    </div>
+    <div class="chips" id="prodChips" role="group" aria-label="Device" style="margin-top:16px"></div>
     <div class="grid-2" style="margin-top:12px">
       <div class="card">
         <h3 id="fcTitle">Monthly units</h3>
@@ -232,6 +259,7 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
           <span><i class="line" style="background:var(--accent)"></i>Forecast P50</span>
           <span><i style="background:var(--band-2)"></i>P25–P75</span>
           <span><i style="background:var(--band-1)"></i>P10–P90</span>
+          <span id="legBase" hidden><i class="line" style="background:var(--ink-3)"></i>P50 before what-if deals</span>
         </div>
       </div>
       <div class="stack">
@@ -341,9 +369,9 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
 
   <!-- METHOD -->
   <section class="panel" id="p-method" hidden>
-    <div class="lede"><div><h2>How it works</h2><p>A one-day prototype on synthetic data. The point is the shape of the system: every step turns the previous step's output into a decision with dollars attached.</p></div></div>
-    <div class="flow">
-      <div><span class="k">01 · PREDICT</span><b>Probabilistic demand</b><span>Global LightGBM quantile models, P5–P95, calibrated on held-out months.</span></div>
+    <div class="lede"><div><h2>How it works</h2><p>A one-day prototype on synthetic data, retrained and redeployed by a CI pipeline with a quality gate. The point is the shape of the system: every step turns the previous step's output into a decision with dollars attached.</p></div></div>
+    <div class="flow" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+      <div><span class="k">01 · PREDICT</span><b>Probabilistic demand</b><span>Global LightGBM quantile models, P5–P95, calibrated on held-out months. Trained in Python, run live in the browser.</span></div>
       <div><span class="k">02 · EXPLODE</span><b>Bill of materials</b><span>Device demand → part demand. Shared parts link devices together.</span></div>
       <div><span class="k">03 · SIMULATE</span><b>Shortage risk</b><span>3,000 Monte Carlo runs with correlated demand and late deliveries.</span></div>
       <div><span class="k">04 · DECIDE</span><b>Cost-based buys</b><span>Newsvendor critical ratio per part. Scenario options scored by net value.</span></div>
@@ -353,6 +381,11 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
       <div class="card">
         <h3>Forecast model</h3>
         <ul class="clean" id="modelFacts"></ul>
+      </div>
+      <div class="card">
+        <h3>Training and deployment</h3>
+        <p class="hint">GitHub Actions, on every push, on demand, and on the 1st of each month.</p>
+        <ol class="clean" id="pipeSteps"></ol>
       </div>
       <div class="card">
         <h3>Decision logic</h3>
@@ -380,6 +413,7 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
           <li>The environmental sensor is intermittent and the model loses to seasonal naive there. In production I'd forecast it with a Croston-style method or at a higher level.</li>
           <li>Finished-goods stock, multi-site allocation and supplier capacity limits are left out.</li>
           <li>The agent briefing is generated from templates so every number is traceable. In production, an LLM would draft the wording from the same numbers.</li>
+          <li>No live data feed or backend service: models are retrained in CI and served as static files. Production would add a warehouse connection, a model registry such as MLflow, drift monitoring and an API for the decision engine.</li>
         </ul>
       </div>
     </div>
@@ -388,6 +422,7 @@ footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 
 
 <div class="wrap"><footer>Prototype by Sophia Gazula · built with Python (LightGBM, pandas) and a plain JavaScript front end, using Claude Code · synthetic data only</footer></div>
 
+<script src="model.js"></script>
 <script src="data.js"></script>
 <script>
 (() => {
@@ -417,22 +452,69 @@ function qAt(qs, u) {
   for (let i = 1; i < QK.length; i++) if (u <= QK[i]) return qs[i - 1] + (u - QK[i - 1]) * (qs[i] - qs[i - 1]) / (QK[i] - QK[i - 1]);
 }
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-const rnd = mulberry32(20261029);
+let rnd = mulberry32(20261029);
 const randn = () => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 const Phi = x => { const t = 1 / (1 + 0.2316419 * Math.abs(x)); const d = 0.3989423 * Math.exp(-x * x / 2); const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; };
+
+// ------------------------------------------- live forecast: the trained LightGBM models, run in the browser
+const FM = window.FORECAST_MODEL, TREES = FM.models.reduce((s, m) => s + m.length, 0);
+const BATCH = D.forecast;                       // what the Python pipeline wrote, used as a parity check
+const DEALS = [];                               // pipeline what-if: { pid, k, units, prob }
+const LIVE = { ms: 0, parity: 0, runs: 0 };
+function walk(trees, x) {
+  let s = 0;
+  for (const t of trees) {
+    let n = t.root;
+    while (n >= 0) { const f = x[t.f[n]]; n = (t.c[n] ? t.c[n].includes(f) : f <= t.t[n]) ? t.l[n] : t.r[n]; }
+    s += t.v[~n];
+  }
+  return s;
+}
+const lg = v => Math.log1p(v), mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+function featuresFor(pi, k, extraPipe) {
+  const p = P[pi], y = D.history[p.id], i = y.length - 1, h = k + 1, base = lg(mean(y.slice(i - 11)));
+  const f = {
+    product: pi, horizon: h, target_month: +D.forecastMonths[k].slice(5),
+    lag0: lg(y[i]) - base, lag1: lg(y[i - 1]) - base, lag2: lg(y[i - 2]) - base,
+    mean3: lg(mean(y.slice(i - 2))) - base, mean6: lg(mean(y.slice(i - 5))) - base,
+    same_month_ly: lg(y[i + h - 12]) - base, trend_yoy: base - lg(mean(y.slice(i - 23, i - 11))),
+    pipeline: lg(D.pipeline[p.id][k] + extraPipe) - base,
+  };
+  return { x: FM.features.map(name => f[name]), base };
+}
+function runForecast() {
+  const t0 = performance.now(), out = {}, extra = {};
+  DEALS.forEach(d => { (extra[d.pid] ||= new Array(H).fill(0))[d.k] += d.units * d.prob; });
+  P.forEach((p, pi) => {
+    out[p.id] = D.forecastMonths.map((_, k) => {
+      const { x, base } = featuresFor(pi, k, extra[p.id]?.[k] || 0);
+      const lq = FM.models.map(trees => walk(trees, x) + base).sort((a, b) => a - b);
+      const mid = lq[3];                                   // calibrated spread around the median
+      return lq.map(v => Math.max(0, Math.expm1(mid + (v - mid) * FM.scale)));
+    });
+  });
+  LIVE.ms = performance.now() - t0; LIVE.runs++;
+  return out;
+}
+D.forecast = runForecast();
+P.forEach(p => D.forecast[p.id].forEach((q, k) => q.forEach((v, j) => { LIVE.parity = Math.max(LIVE.parity, Math.abs(v - BATCH[p.id][k][j])); })));
+const BASE_FC = JSON.parse(JSON.stringify(D.forecast));
 
 // ------------------------------------------------------- Monte Carlo
 const N = 3000, RHO = 0.6;
 const posByComp = {};
 D.openPOs.forEach(po => (posByComp[po.component_id] ||= []).push(po));
-const MC = {};
+let MC = {}, LATE = {};
+function runMC() {
+rnd = mulberry32(20261029);                     // same random draws every run, so changes come from the inputs
+MC = {}; LATE = {};
 C.forEach(c => {
   c.openTotal = (posByComp[c.id] || []).reduce((s, p) => s + p.qty, 0);
   c.protect = H;   // cover the full planning window; a new buy lands at lead time
   c.single = !c.alt;
   MC[c.id] = { reqProt: new Float64Array(N), req6: new Float64Array(N), short: 0, firstShort: new Array(H).fill(0), need: new Float32Array(N * H) };
 });
-const LATE = {}; D.openPOs.forEach(po => LATE[po.po] = new Int8Array(N));
+D.openPOs.forEach(po => LATE[po.po] = new Int8Array(N));
 for (let s = 0; s < N; s++) {
   const dem = {};
   P.forEach(p => { const z = randn(); dem[p.id] = D.forecast[p.id].map(qs => qAt(qs, Phi(RHO * z + Math.sqrt(1 - RHO * RHO) * randn()))); });
@@ -450,6 +532,13 @@ for (let s = 0; s < N; s++) {
   });
 }
 C.forEach(c => { MC[c.id].reqProt.sort(); MC[c.id].req6.sort(); });
+// margin per unit of component, demand-weighted
+C.forEach(c => {
+  let w = 0, m = 0;
+  bomC[c.id].forEach(b => { const d = D.forecast[b.product].reduce((s, q) => s + q[3], 0) * b.qty; w += d; m += d * prodById[b.product].margin / b.qty; });
+  c.marginPerUnit = m / w;
+});
+}
 const sq = (arr, q) => arr[Math.min(arr.length - 1, Math.floor(q * arr.length))];
 
 // shortage probability for a part under a plan: pull-ins {po: months earlier}, extra arrivals {monthIdx: qty}
@@ -466,13 +555,6 @@ function evalShort(c, pull, extra) {
   return short / N;
 }
 const TARGET_RISK = 0.15, ACT_RISK = 0.40;   // expedite only high-risk parts, aim below 15%
-
-// margin per unit of component, demand-weighted
-C.forEach(c => {
-  let w = 0, m = 0;
-  bomC[c.id].forEach(b => { const d = D.forecast[b.product].reduce((s, q) => s + q[3], 0) * b.qty; w += d; m += d * prodById[b.product].margin / b.qty; });
-  c.marginPerUnit = m / w;
-});
 
 // ------------------------------------------------------- buy plan
 const A = { pLost: 0.15, hold: 0.25, obs: 0.10 };
@@ -603,7 +685,7 @@ function renderFcChart(pid) {
   const hist = D.history[pid], fc = D.forecast[pid], hm = D.historyMonths, fm = D.forecastMonths;
   const all = [...hm, ...fm], n = all.length;
   const m = { l: 52, r: 12, t: 12, b: 26 };
-  const ymax = niceMax(Math.max(...hist, ...fc.map(q => q[5])) * 1.05);
+  const ymax = niceMax(Math.max(...hist, ...fc.map(q => q[5]), ...BASE_FC[pid].map(q => q[5])) * 1.05);
   const x = i => m.l + (i + 0.5) * (w - m.l - m.r) / n, y = v => h - m.b - v / ymax * (h - m.t - m.b);
   let g = "";
   for (let t = 0; t <= 4; t++) { const v = ymax * t / 4; g += `<line x1="${m.l}" x2="${w - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${fmtK(v)}</text>`; }
@@ -616,6 +698,9 @@ function renderFcChart(pid) {
   g += `<polygon points="${lastX},${lastY} ${band(1, 5)}" fill="var(--band-1)"/>`;
   g += `<polygon points="${band(2, 4)}" fill="var(--band-2)"/>`;
   g += `<polyline points="${hist.map((v, i) => `${x(i)},${y(v)}`).join(" ")}" fill="none" stroke="var(--ink-2)" stroke-width="2" stroke-linejoin="round"/>`;
+  const changed = BASE_FC[pid].some((q, i) => Math.abs(q[3] - fc[i][3]) > 1);
+  if (changed) g += `<polyline points="${lastX},${lastY} ${BASE_FC[pid].map((q, i) => `${x(fi(i))},${y(q[3])}`).join(" ")}" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-dasharray="4 4"/>`;
+  $("#legBase").hidden = !changed;
   g += `<polyline points="${lastX},${lastY} ${fc.map((q, i) => `${x(fi(i))},${y(q[3])}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
   fc.forEach((q, i) => g += `<circle cx="${x(fi(i))}" cy="${y(q[3])}" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`);
   g += `<line id="fcCross" x1="0" x2="0" y1="${m.t}" y2="${h - m.b}" stroke="var(--ink-3)" stroke-dasharray="3 3" opacity="0"/>`;
@@ -795,6 +880,7 @@ function renderAgent() {
   const buyTot = PLAN.reduce((s, r) => s + r.value + r.pullCost, 0);
   const affected = P.map((p, i) => ({ p, v: (sc.base.endBacklog[i] + sc.base.late[i]) * p.revenue })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 2).map(x => x.p.name);
   let html = `<div class="who"><span class="dot"></span>Agent briefing · October 2026 month-end · generated from the numbers on steps 1–3</div>`;
+  if (DEALS.length) html += `<p>This run includes ${DEALS.length} what-if pipeline deal${DEALS.length > 1 ? "s" : ""} (${DEALS.map(d => `${fmtK(d.units)} ${esc(prodById[d.pid].name)} in ${MLAB(D.forecastMonths[d.k])}`).join(", ")}), re-forecast by the model.</p>`;
   if (S.delay > 0) html += `<p><b>${esc(supById[S.sup].name)} is ${S.delay} month${S.delay === 1 ? "" : "s"} late.</b> Without action, ${sc.base.revAtRisk >= 100000 ? `${usd(sc.base.revAtRisk)} of device revenue misses the April window and ${usd(sc.base.lateRev)} ships late` : `${usd(sc.base.lateRev)} of device revenue ships late`}${affected.length ? `, mostly ${esc(affected.join(" and "))}` : ""}. The best option is <b>${esc(lc(best.name))}</b>: it costs ${usd(best.r.cost)} and is worth ${usd(best.value)} net.${!sc.hasAlt ? " These parts have no qualified second source, so I've proposed starting one." : ""}</p>`;
   html += `<p>In the base forecast, ${hi.length} part${hi.length === 1 ? " is" : "s are"} at high shortage risk${hi.length ? ` (${hi.map(r => `${esc(lc(r.c.name))} ${pct(r.pShort)}`).join(", ")})` : ""}. The plan fixes that with ${usd(buyTot)} of new buys and pull-ins.</p>`;
   html += `<p>I've done ${acts.filter(a => a.tier === 1).length} low-risk actions myself. ${p2 + p3 ? `${p2} need${p2 === 1 ? "s" : ""} a planner and ${p3} need${p3 === 1 ? "s" : ""} a director.` : "Nothing is waiting for approval."}</p>`;
@@ -830,13 +916,59 @@ function renderKpis(pend) {
     <div class="kpi"><div class="l">Actions awaiting approval</div><div class="v">${pendingCount}</div><div class="d">Planner + director</div></div>`;
 }
 
+// ------------------------------------------------------------ pipeline what-if
+function recompute() {
+  D.forecast = runForecast(); runMC(); PLAN = buyPlan(); SC = scenario(); pendingCount = null;
+  renderKpis(); renderDeals(); renderForecast();
+}
+function renderDeals() {
+  $("#liveBadge").textContent = `Live inference · ${FM.models.length} quantile models · ${fmtInt(TREES)} trees · ${Math.max(1, Math.round(LIVE.ms))} ms`;
+  $("#dlProbV").textContent = pct(+$("#dlProb").value);
+  $("#dlReset").hidden = !DEALS.length;
+  $("#dealList").innerHTML = DEALS.map((d, i) => `<span class="deal">${fmtInt(d.units)} × ${esc(prodById[d.pid].name)} · ${MLABY(D.forecastMonths[d.k])} · ${pct(d.prob)}<button aria-label="Remove deal" data-i="${i}">×</button></span>`).join("");
+  $$("#dealList button").forEach(b => b.onclick = () => { DEALS.splice(+b.dataset.i, 1); recompute(); });
+  const imp = $("#dealImpact");
+  if (!DEALS.length) { imp.hidden = true; return; }
+  const pids = [...new Set(DEALS.map(d => d.pid))];
+  const lines = pids.map(pid => {
+    const s = (fc, j) => fc[pid].reduce((t, q) => t + q[j], 0);
+    const added = DEALS.filter(d => d.pid === pid).reduce((t, d) => t + d.units * d.prob, 0);
+    return `<b>${esc(prodById[pid].name)}</b>: 6-month P50 ${fmtK(s(BASE_FC, 3))} → ${fmtK(s(D.forecast, 3))} (+${fmtK(s(D.forecast, 3) - s(BASE_FC, 3))}), P90 ${fmtK(s(BASE_FC, 5))} → ${fmtK(s(D.forecast, 5))}. Weighted pipeline added: ${fmtK(added)}.`;
+  });
+  const hi = PLAN.filter(r => r.pShort >= 0.4).length, spend = PLAN.reduce((t, r) => t + r.value + r.pullCost, 0);
+  imp.hidden = false;
+  imp.innerHTML = lines.join("<br>") + `<br>Parts at high shortage risk: <b>${BASE_STATE.hi} → ${hi}</b>. Plan spend: <b>${usd(BASE_STATE.spend)} → ${usd(spend)}</b>. The model decides how much of the pipeline turns into orders; it does not just add the deal.`;
+}
+function initDeals() {
+  $("#dlDev").innerHTML = P.map(p => `<option value="${p.id}" ${p.id === "CAM-DUAL" ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  $("#dlMonth").innerHTML = D.forecastMonths.map((m, k) => `<option value="${k}" ${k === 2 ? "selected" : ""}>${MLABY(m)}</option>`).join("");
+  $("#dlProb").oninput = () => $("#dlProbV").textContent = pct(+$("#dlProb").value);
+  $("#dlAdd").onclick = () => {
+    const units = Math.max(0, Math.min(100000, +$("#dlUnits").value || 0)); if (!units) return;
+    const d = { pid: $("#dlDev").value, k: +$("#dlMonth").value, units, prob: +$("#dlProb").value };
+    DEALS.push(d); curProd = d.pid; recompute();
+  };
+  $("#dlReset").onclick = () => { DEALS.length = 0; recompute(); };
+  renderDeals();
+}
+
 // ------------------------------------------------------------ wiring
 function renderMethod() {
-  const o = D.backtest.overall;
+  const o = D.backtest.overall, mc = D.modelCard;
+  $("#pipeSteps").innerHTML = [
+    "<b>Build data</b>: demand history, sales pipeline snapshots, bill of materials, suppliers.",
+    "<b>Train</b>: 7 LightGBM quantile models on all origins observable at forecast time.",
+    `<b>Backtest + calibrate</b>: ${o.n} rolling forecasts; interval spread fitted on earlier held-out months.`,
+    `<b>Quality gate</b>: release only if the model beats the best baseline by 10%+, bias is under 15% and P10–P90 coverage is 70–95%.` +
+      (mc ? ` Last run: ${mc.gate.map(g => `${g.passed ? "pass" : "fail"} (${esc(g.value)})`).join(", ")}.` : ""),
+    "<b>Export</b>: models saved as LightGBM text files plus a compact tree file the browser runs; model card written.",
+    "<b>Deploy</b>: the site is rebuilt and published to GitHub Pages. A failed gate stops the release and the previous version stays live.",
+  ].map(x => `<li>${x}</li>`).join("") + (mc ? `<li style="list-style:none;margin-left:-18px;color:var(--ink-3);font-size:12px">Current model trained ${esc(mc.trained_at.replace("T", " ").replace("+00:00", " UTC"))} · commit ${esc(String(mc.git_commit).slice(0, 7))}</li>` : "");
   $("#modelFacts").innerHTML = [
     `<b>Model:</b> one LightGBM model per quantile (P5–P95), trained across all devices. Months ahead is a feature, so one model covers 1–6 months.`,
     `<b>Inputs known at forecast time:</b> recent demand, same month last year, trend, calendar month and the weighted sales pipeline for the target month. All relative to each device's 12-month level so the trees can follow growth.`,
     `<b>Backtest:</b> ${o.n} forecasts over ${D.backtest.backtest_origins.length} rolling origins. WAPE ${pct(o.wape_model, 1)} vs. ${pct(o.wape_seasonal_naive, 1)} for same month last year and ${pct(o.wape_moving_avg, 1)} for a 3-month average. Bias ${o.bias_model >= 0 ? "+" : "−"}${pct(Math.abs(o.bias_model), 1)}.`,
+    `<b>Inference:</b> the trained models (${fmtInt(TREES)} trees) are exported from Python and run in the browser. Their output matches the Python batch run to within ${LIVE.parity.toFixed(2)} units (the batch file is rounded to 0.1).`,
     `<b>Calibration:</b> raw quantile intervals covered only ${pct(o.coverage_raw)} of actuals. A spread factor fitted on ${D.backtest.calibration_origins.length} earlier origins brings P10–P90 coverage to ${pct(o.coverage_p10_p90)} on the backtest months it never saw (target 80%).`,
   ].map(s => `<li>${s}</li>`).join("");
 }
@@ -862,7 +994,9 @@ $("#limit").oninput = e => { LIMIT = +e.target.value; renderAgent(); };
 window.addEventListener("hashchange", route);
 let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(route, 150); });
 
-PLAN = buyPlan(); SC = scenario(); renderKpis();
+runMC(); PLAN = buyPlan(); SC = scenario(); renderKpis();
+const BASE_STATE = { hi: PLAN.filter(r => r.pShort >= 0.4).length, spend: PLAN.reduce((s, r) => s + r.value + r.pullCost, 0) };
+initDeals();
 route();
 })();
 </script>

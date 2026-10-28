@@ -12,7 +12,7 @@ In hardware, supply chains rarely break at the finished-goods level. They break 
 
 | Step | What it does | Method |
 |---|---|---|
-| 1. Predict | Forecast each device 1–6 months ahead as a range (P5–P95) | Global LightGBM quantile models, direct multi-horizon, sales pipeline as a leading signal, conformal-style interval calibration |
+| 1. Predict | Forecast each device 1–6 months ahead as a range (P5–P95) | Global LightGBM quantile models, direct multi-horizon, sales pipeline as a leading signal, conformal-style interval calibration. Trained in Python; the trained trees are exported and run live in the browser, so a what-if pipeline deal re-forecasts demand instantly |
 | 2. Explode | Turn device demand into part demand | Bill of materials with shared parts |
 | 3. Simulate | Probability each part runs short before the horizon ends | 3,000 Monte Carlo runs: correlated demand + supplier lateness |
 | 4. Decide | How much to buy, and when to pull orders in | Newsvendor critical ratio per part (cost of short vs. cost of holding); pull-ins when the problem is timing, not quantity |
@@ -27,13 +27,30 @@ In hardware, supply chains rarely break at the finished-goods level. They break 
 - Raw quantile intervals covered 68% of actuals; after calibration on earlier held-out origins, **P10–P90 covers 87%** of backtest actuals (target 80%)
 - Known weakness: the intermittent environmental sensor, where the model loses to seasonal naive. In production I would use a Croston-style method or forecast at a higher level.
 
+## Training and deployment (MLOps)
+
+`.github/workflows/train-and-deploy.yml` runs on every push, on demand, and on the 1st of each month:
+
+1. **Build data**: `src/simulate_supply_chain.py`
+2. **Train + backtest + calibrate**: `src/forecast.py` trains 7 quantile models, runs a rolling-origin backtest and fits the interval calibration
+3. **Quality gate**: `src/quality_gate.py` releases the model only if it beats the best baseline by 10%+, |bias| < 15% and P10–P90 coverage is 70–95%. A failure stops the pipeline, so the previous version stays live
+4. **Export**: models saved as LightGBM text files (`models/quantile_qXX.txt`), a compact tree file for browser inference (`models/forecast_model.json`), and a model card (`models/model_card.json`). Browser inference matches LightGBM's own predictions to within 1e-6
+5. **Deploy**: the site is rebuilt and published to GitHub Pages; models and the model card are kept as a build artifact
+
+To enable it: **Settings → Pages → Source: GitHub Actions**.
+
+## Live what-if
+
+On the Demand forecast step, add a deal to the weighted sales pipeline (device, close month, size, win probability). The model re-predicts all quantiles in the browser (~2,100 trees in a few milliseconds), then part risk, the buy plan, the supplier-shock analysis and the agent's action queue all update.
+
 ## Run it
 
 ```bash
 pip install -r requirements.txt
 python src/simulate_supply_chain.py   # synthetic demand, pipeline, BOM, suppliers
-python src/forecast.py                # quantile models + backtest + calibration
-python src/export_app_data.py         # inventory position + app/data.js
+python src/forecast.py                # quantile models + backtest + calibration + model export
+python src/quality_gate.py            # release checks + model card
+python src/export_app_data.py         # inventory position + app/data.js + app/model.js
 python src/build_site.py              # docs/ for GitHub Pages
 ```
 
@@ -43,8 +60,11 @@ Open `docs/index.html` in a browser, or serve it: `python -m http.server -d docs
 
 ```
 src/simulate_supply_chain.py   synthetic supply chain
-src/forecast.py                LightGBM quantile forecast, backtest, calibration
+src/forecast.py                LightGBM quantile forecast, backtest, calibration, model export
+src/quality_gate.py            release checks and model card
 src/export_app_data.py         inventory position and app data export
+.github/workflows/             CI: train, gate, deploy
+models/                        saved models, browser model file, model card
 src/build_site.py              builds docs/ for GitHub Pages
 app/index.html                 the web app (forecast, risk, shock, agent)
 data/                          generated CSVs and backtest summary

@@ -73,8 +73,14 @@ forecast = {pid: [[round(float(r[q]), 1) for q in ["q05", "q10", "q25", "q50", "
                   for _, r in fc[fc.product_id == pid].sort_values("horizon").iterrows()]
             for pid in products.product_id}
 
+pipe = pd.read_csv(DATA / "pipeline_snapshots.csv")
+last = sorted(demand.month.unique())[-1]
+pipeline_now = {pid: [int(pipe[(pipe.origin == last) & (pipe.product_id == pid) & (pipe.horizon == h)].weighted_pipeline_units.iloc[0])
+                      for h in range(1, len(fmonths) + 1)] for pid in products.product_id}
+
 app = {
     "asOf": "2026-10",
+    "pipeline": pipeline_now,
     "historyMonths": hist_months,
     "forecastMonths": fmonths,
     "quantiles": [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95],
@@ -88,7 +94,10 @@ app = {
     "history": history,
     "forecast": forecast,
     "backtest": bt,
+    "modelCard": json.loads((ROOT / "models" / "model_card.json").read_text()) if (ROOT / "models" / "model_card.json").exists() else None,
 }
+model_json = (ROOT / "models" / "forecast_model.json").read_text()
+(APP / "model.js").write_text("window.FORECAST_MODEL = " + model_json + ";\n")
 (APP / "data.js").write_text("window.APP_DATA = " + json.dumps(app, separators=(",", ":")) + ";\n")
 print("components:", len(comp_out), "open POs:", len(pos), "bytes:", (APP / "data.js").stat().st_size)
 print(pd.Series({c["id"]: c["onHand"] for c in comp_out}))

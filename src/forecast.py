@@ -83,13 +83,15 @@ def predict_origin(o):
     meta = [(h, p) for h in range(1, H + 1) for p in range(len(pids))]
     Xp = pd.DataFrame([features(o, h, p) for h, p in meta])
     base = np.array([level(o, p) for h, p in meta])
-    preds, importance = [], None
+    preds, importance, models = [], None, []
     for q in QUANTILES:
         m = lgb.LGBMRegressor(objective="quantile", alpha=q, **PARAMS)
         m.fit(Xtr, ytr, categorical_feature=["product"])
         preds.append(m.predict(Xp) + base)
+        models.append(m)
         if q == 0.5:
             importance = dict(zip(Xtr.columns, m.booster_.feature_importance("gain")))
+    predict_origin.last_models, predict_origin.last_X = models, Xp
     return np.sort(np.column_stack(preds), axis=1), meta, importance
 
 
@@ -179,6 +181,60 @@ summary["final_interval_scale"] = final_scale
 summary["feature_importance"] = {k: round(v / tot, 4) for k, v in sorted(importance.items(), key=lambda x: -x[1])}
 
 fc.to_csv(DATA / "forecast.csv", index=False)
+
+# ------------------------------------------------ save production models
+MODELS = ROOT / "models"
+MODELS.mkdir(exist_ok=True)
+for qq, m in zip(QUANTILES, predict_origin.last_models):
+    m.booster_.save_model(str(MODELS / f"quantile_q{int(qq * 100):02d}.txt"))
+
+
+def compact(tree):
+    """Flatten one LightGBM tree into arrays a browser can walk.
+    Child index >= 0 is an internal node, < 0 is leaf ~index."""
+    feat, thr, cats, left, right, leaves = [], [], [], [], [], []
+
+    def walk(n):
+        if "leaf_value" in n:
+            leaves.append(round(n["leaf_value"], 7))
+            return ~(len(leaves) - 1)
+        i = len(feat)
+        feat.append(n["split_feature"]); left.append(0); right.append(0)
+        if n["decision_type"] == "==":
+            thr.append(None); cats.append([int(c) for c in str(n["threshold"]).split("||")])
+        else:
+            thr.append(round(float(n["threshold"]), 7)); cats.append(None)
+        left[i] = walk(n["left_child"]); right[i] = walk(n["right_child"])
+        return i
+
+    root = walk(tree["tree_structure"])
+    return {"root": root, "f": feat, "t": thr, "c": cats, "l": left, "r": right, "v": leaves}
+
+
+def walk_predict(trees, x):
+    total = 0.0
+    for t in trees:
+        node = t["root"]
+        while node >= 0:
+            f = x[t["f"][node]]
+            go_left = (int(f) in t["c"][node]) if t["c"][node] is not None else (f <= t["t"][node])
+            node = t["l"][node] if go_left else t["r"][node]
+        total += t["v"][~node]
+    return total
+
+
+export = {"features": list(predict_origin.last_X.columns), "quantiles": QUANTILES, "scale": final_scale, "models": []}
+X_check = predict_origin.last_X.values
+max_err = 0.0
+for qq, m in zip(QUANTILES, predict_origin.last_models):
+    dump = m.booster_.dump_model()
+    trees = [compact(t) for t in dump["tree_info"]]
+    export["models"].append(trees)
+    ref = m.predict(predict_origin.last_X)
+    mine = np.array([walk_predict(trees, row) for row in X_check])
+    max_err = max(max_err, float(np.abs(ref - mine).max()))
+(MODELS / "forecast_model.json").write_text(json.dumps(export, separators=(",", ":")))
+print(f"exported {sum(len(t) for t in export['models'])} trees; max |tree walk - LightGBM| = {max_err:.2e}")
 bt_df.to_csv(DATA / "backtest_detail.csv", index=False)
 (DATA / "backtest_summary.json").write_text(json.dumps(summary, indent=2))
 
