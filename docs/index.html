@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Component Risk Agent</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: operations console. Sticky header + KPI strip, a numbered pipeline of tabs (the order is the method), one working panel per step. */
+:root {
+  --bg: #F3F5F8; --surface: #FFFFFF; --surface-2: #EDF1F6; --line: #D9E0E8; --line-strong: #B9C4D0;
+  --ink: #15202B; --ink-2: #44515E; --ink-3: #6B7785;
+  --accent: #1E5AA8; --accent-soft: #DCE8F7; --band-1: #C9DBF2; --band-2: #9DBCE6; --neutral-mark: #A7B2BE;
+  --good: #23784A; --good-soft: #DDF1E5; --warn: #9A6200; --warn-soft: #FBEBCB; --crit: #B3261E; --crit-soft: #F9DEDB;
+  --font-ui: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E141B; --surface: #151D26; --surface-2: #1B2531; --line: #27333F; --line-strong: #3A4856;
+  --ink: #E6ECF2; --ink-2: #B3BFCB; --ink-3: #8794A2;
+  --accent: #6EA6F0; --accent-soft: #1C3150; --band-1: #1F3756; --band-2: #2D5180; --neutral-mark: #5C6A78;
+  --good: #5CC48A; --good-soft: #15301F; --warn: #E3AD4E; --warn-soft: #34270F; --crit: #F07C72; --crit-soft: #3A1714;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0E141B; --surface: #151D26; --surface-2: #1B2531; --line: #27333F; --line-strong: #3A4856;
+  --ink: #E6ECF2; --ink-2: #B3BFCB; --ink-3: #8794A2;
+  --accent: #6EA6F0; --accent-soft: #1C3150; --band-1: #1F3756; --band-2: #2D5180; --neutral-mark: #5C6A78;
+  --good: #5CC48A; --good-soft: #15301F; --warn: #E3AD4E; --warn-soft: #34270F; --crit: #F07C72; --crit-soft: #3A1714;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; margin: 0; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.25; }
+.num, td.n, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.brand .sub { color: var(--ink-3); font-size: 13px; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; background: var(--warn-soft); color: var(--warn); }
+.asof { font-size: 12px; color: var(--ink-3); }
+
+nav.steps { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+nav.steps::-webkit-scrollbar { display: none; }
+nav.steps a { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 14px 11px; text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: 13px; border-bottom: 2px solid transparent; white-space: nowrap; }
+nav.steps a .k { font-family: var(--font-mono); font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--surface-2); color: var(--ink-3); }
+nav.steps a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
+nav.steps a[aria-current="page"] .k { background: var(--accent); color: var(--surface); }
+nav.steps .sep { color: var(--line-strong); align-self: center; padding-inline: 2px; }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-block: 16px 4px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.kpi .l { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.kpi .v { font-family: var(--font-mono); font-size: 22px; font-weight: 500; letter-spacing: -0.02em; margin-top: 2px; }
+.kpi .d { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.kpi.alert .v { color: var(--crit); }
+
+main { padding-block: 16px 48px; }
+section.panel[hidden] { display: none !important; }
+.lede { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.lede h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.lede p { margin: 4px 0 0; color: var(--ink-2); max-width: 70ch; }
+
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.card h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.card .hint { font-size: 12px; color: var(--ink-3); margin: 0 0 10px; }
+.stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 99px; padding: 5px 12px; font-size: 13px; cursor: pointer; color: var(--ink-2); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.chip:hover { border-color: var(--accent); }
+
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--ink-3); font-family: var(--font-mono); font-size: 11px; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); border-radius: 6px; padding: 8px 10px; font-size: 12px; line-height: 1.45; min-width: 150px; transform: translate(-50%, calc(-100% - 10px)); white-space: nowrap; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.tip b { font-weight: 600; }
+.tip .row { display: flex; justify-content: space-between; gap: 14px; font-family: var(--font-mono); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend i.line { height: 2px; vertical-align: 3px; }
+
+.metric-rows { display: grid; gap: 10px; }
+.mrow { display: grid; grid-template-columns: 130px minmax(0, 1fr) 54px; gap: 10px; align-items: center; font-size: 13px; }
+.mrow .bar { height: 10px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.mrow .bar span { display: block; height: 100%; border-radius: 0 3px 3px 0; background: var(--neutral-mark); }
+.mrow.me .bar span { background: var(--accent); }
+.mrow .val { text-align: right; font-family: var(--font-mono); }
+.stat-pair { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.stat-pair div { background: var(--surface-2); border-radius: 6px; padding: 8px 10px; }
+.stat-pair .l { font-size: 11px; color: var(--ink-3); }
+.stat-pair .v { font-family: var(--font-mono); font-size: 16px; }
+
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); background: var(--surface-2); position: sticky; top: 0; }
+td.n, th.n { text-align: right; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.wrap { white-space: normal; min-width: 190px; }
+td .sub { display: block; font-size: 11px; color: var(--ink-3); }
+tr.best td { background: var(--good-soft); }
+tr.best td:first-child { box-shadow: inset 3px 0 0 var(--good); }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.pill.info { background: var(--accent-soft); color: var(--accent); }
+.flag { font-size: 11px; font-weight: 600; color: var(--crit); }
+.prob { display: inline-flex; align-items: center; gap: 8px; }
+.prob .b { width: 60px; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.prob .b span { display: block; height: 100%; }
+
+.controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+.ctl { display: grid; gap: 4px; min-width: 0; }
+.ctl label { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.ctl .row { display: flex; align-items: center; gap: 8px; }
+.ctl output { font-family: var(--font-mono); font-size: 13px; min-width: 44px; }
+input[type=range] { accent-color: var(--accent); width: 150px; }
+select { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 6px; padding: 6px 8px; max-width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 6px 10px; cursor: pointer; color: var(--ink-2); font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+
+.callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--surface); border-radius: var(--radius); padding: 12px 14px; color: var(--ink-2); }
+.callout b { color: var(--ink); }
+
+.brief { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.brief .who { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-3); margin-bottom: 8px; }
+.brief .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+.brief p { margin: 0 0 8px; max-width: 80ch; font-size: 15px; }
+.brief p:last-child { margin: 0; }
+
+.queue { display: grid; gap: 10px; }
+.act { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.act .t { font-weight: 600; }
+.act .r { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.act .meta { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
+.act .btns { display: flex; gap: 6px; }
+.btn { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn:hover { border-color: var(--accent); }
+.state { font-size: 12px; font-weight: 600; }
+.state.ok { color: var(--good); }
+.state.no { color: var(--ink-3); }
+.tier-1 { background: var(--good-soft); color: var(--good); }
+.tier-2 { background: var(--accent-soft); color: var(--accent); }
+.tier-3 { background: var(--warn-soft); color: var(--warn); }
+
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.flow > div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; position: relative; min-width: 0; }
+.flow .k { font-family: var(--font-mono); font-size: 11px; color: var(--accent); font-weight: 500; }
+.flow b { display: block; margin: 2px 0 4px; }
+.flow span { font-size: 12px; color: var(--ink-2); }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+ul.clean { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); }
+ul.clean li { margin-bottom: 5px; }
+footer { color: var(--ink-3); font-size: 12px; padding-block: 24px; border-top: 1px solid var(--line); }
+
+@media (max-width: 900px) {
+  .grid-2, .cols { grid-template-columns: minmax(0, 1fr); }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .act { grid-template-columns: minmax(0, 1fr); }
+  .mrow { grid-template-columns: 100px minmax(0, 1fr) 48px; }
+  .kpi .v { font-size: 18px; }
+}
+@media (prefers-reduced-motion: no-preference) { .mrow .bar span, .prob .b span { transition: width .3s ease; } }
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div class="brand">
+        <h1>Component Risk Agent</h1>
+        <span class="sub">Connected-hardware supply chain · forecast → component risk → decision → action</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="tag">Synthetic data</span>
+        <span class="asof">Position as of end of Oct 2026 · planning horizon Nov–Apr</span>
+      </div>
+    </div>
+    <nav class="steps" aria-label="Workflow steps">
+      <a href="#forecast" data-tab="forecast"><span class="k">1</span>Demand forecast</a><span class="sep">›</span>
+      <a href="#risk" data-tab="risk"><span class="k">2</span>Component risk &amp; buy plan</a><span class="sep">›</span>
+      <a href="#shock" data-tab="shock"><span class="k">3</span>Supplier shock</a><span class="sep">›</span>
+      <a href="#agent" data-tab="agent"><span class="k">4</span>Agent actions</a><span class="sep">·</span>
+      <a href="#method" data-tab="method"><span class="k">?</span>How it works</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+</div>
+
+<main class="wrap">
+  <!-- 1 FORECAST -->
+  <section class="panel" id="p-forecast">
+    <div class="lede">
+      <div>
+        <h2>Demand forecast by device</h2>
+        <p>Gradient-boosted quantile models give a range for every month, not one number. The range is what drives component buys, because long lead times mean the high end decides how much risk you carry.</p>
+      </div>
+    </div>
+    <div class="chips" id="prodChips" role="group" aria-label="Device"></div>
+    <div class="grid-2" style="margin-top:12px">
+      <div class="card">
+        <h3 id="fcTitle">Monthly units</h3>
+        <p class="hint">Last 24 months of actuals, then the next 6 months. Hover for values.</p>
+        <div class="chart" id="fcChart"></div>
+        <div class="legend">
+          <span><i class="line" style="background:var(--ink-2)"></i>Actual</span>
+          <span><i class="line" style="background:var(--accent)"></i>Forecast P50</span>
+          <span><i style="background:var(--band-2)"></i>P25–P75</span>
+          <span><i style="background:var(--band-1)"></i>P10–P90</span>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3>Backtest: forecast error (WAPE)</h3>
+          <p class="hint" id="btHint"></p>
+          <div class="metric-rows" id="btBars"></div>
+          <div class="stat-pair" id="btStats"></div>
+        </div>
+        <div class="card">
+          <h3>What drives the forecast</h3>
+          <p class="hint">Share of model gain, P50 model. Sales pipeline is the leading signal.</p>
+          <div class="metric-rows" id="fiBars"></div>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:16px"><table id="fcTable"></table></div>
+  </section>
+
+  <!-- 2 RISK -->
+  <section class="panel" id="p-risk" hidden>
+    <div class="lede">
+      <div>
+        <h2>Component shortage risk and buy plan</h2>
+        <p>Device forecasts are exploded through the bill of materials and simulated 3,000 times, including late supplier deliveries. Each part's buy quantity is set by the cost of being short versus the cost of holding too much.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="controls">
+        <div class="ctl"><label for="pLost">Short orders lost (rest are expedited)</label><div class="row"><input type="range" id="pLost" min="0" max="0.5" step="0.05" value="0.15"><output id="pLostV"></output></div></div>
+        <div class="ctl"><label for="hold">Holding cost per year</label><div class="row"><input type="range" id="hold" min="0.1" max="0.4" step="0.01" value="0.25"><output id="holdV"></output></div></div>
+        <div class="ctl"><label for="obs">Obsolescence risk</label><div class="row"><input type="range" id="obs" min="0" max="0.3" step="0.01" value="0.10"><output id="obsV"></output></div></div>
+      </div>
+    </div>
+    <div class="grid-2" style="grid-template-columns:minmax(0,1fr)">
+      <div class="tbl-wrap"><table id="riskTable"></table></div>
+    </div>
+    <div class="cols" style="margin-top:16px">
+      <div class="card">
+        <h3>Expected cost of each buy policy</h3>
+        <p class="hint">Holding + obsolescence + shortage cost, averaged over the 3,000 simulations, for all parts.</p>
+        <div class="metric-rows" id="policyBars"></div>
+      </div>
+      <div class="callout" id="riskCallout"></div>
+    </div>
+  </section>
+
+  <!-- 3 SHOCK -->
+  <section class="panel" id="p-shock" hidden>
+    <div class="lede">
+      <div>
+        <h2>Supplier shock: what breaks, and the cheapest fix</h2>
+        <p>Starts from the step 2 plan. Pick a supplier and a delay. The model rebuilds the monthly build plan, finds which devices get blocked by which parts, and scores each mitigation by margin protected minus its cost.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="controls">
+        <div class="ctl"><label for="shSup">Supplier</label><select id="shSup"></select></div>
+        <div class="ctl"><label for="shDelay">Delay on open orders</label><div class="row"><input type="range" id="shDelay" min="0" max="4" step="1" value="2"><output id="shDelayV"></output></div></div>
+        <div class="ctl"><label for="lateCost">Cost of a late shipment (share of margin)</label><div class="row"><input type="range" id="lateCost" min="0" max="0.5" step="0.05" value="0.15"><output id="lateCostV"></output></div></div>
+        <div class="ctl"><label>Demand level</label><div class="seg" role="group" aria-label="Demand level"><button data-dl="3" aria-pressed="true">P50</button><button data-dl="5" aria-pressed="false">P90 stress</button></div></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Device revenue: demand vs. what can be built</h3>
+        <p class="hint">Do nothing vs. the recommended plan, by month. Hover for detail.</p>
+        <div class="chart" id="shChart"></div>
+        <div class="legend">
+          <span><i class="line" style="background:var(--ink-2)"></i>Demand</span>
+          <span><i style="background:var(--neutral-mark)"></i>Built · do nothing</span>
+          <span><i style="background:var(--accent)"></i>Built · recommended</span>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card" id="shSummary"></div>
+      </div>
+    </div>
+    <h3 style="margin:20px 0 8px;font-size:15px">Mitigation options</h3>
+    <div class="tbl-wrap"><table id="optTable"></table></div>
+    <h3 style="margin:20px 0 8px;font-size:15px">Impact by device · do nothing</h3>
+    <div class="tbl-wrap"><table id="impTable"></table></div>
+  </section>
+
+  <!-- 4 AGENT -->
+  <section class="panel" id="p-agent" hidden>
+    <div class="lede">
+      <div>
+        <h2>Agent actions with tiered autonomy</h2>
+        <p>The agent acts alone only when an action is free and reversible. Spend goes to a planner up to a limit, and anything above it, or anything strategic, goes to a director. Every step is logged.</p>
+      </div>
+      <div class="ctl"><label for="limit">Planner approval limit</label><div class="row"><input type="range" id="limit" min="50000" max="1000000" step="50000" value="250000"><output id="limitV"></output></div></div>
+    </div>
+    <div class="brief" id="brief"></div>
+    <div class="cols" style="margin-top:16px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+      <div>
+        <h3 style="font-size:15px;margin-bottom:8px">Action queue</h3>
+        <div class="queue" id="queue"></div>
+      </div>
+      <div>
+        <h3 style="font-size:15px;margin-bottom:8px">Audit log</h3>
+        <div class="tbl-wrap"><table id="audit"></table></div>
+        <p class="hint" style="margin-top:8px;font-size:12px;color:var(--ink-3)">In production these actions post to the ERP and Slack through webhooks. Here they are simulated.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- METHOD -->
+  <section class="panel" id="p-method" hidden>
+    <div class="lede"><div><h2>How it works</h2><p>A one-day prototype on synthetic data. The point is the shape of the system: every step turns the previous step's output into a decision with dollars attached.</p></div></div>
+    <div class="flow">
+      <div><span class="k">01 · PREDICT</span><b>Probabilistic demand</b><span>Global LightGBM quantile models, P5–P95, calibrated on held-out months.</span></div>
+      <div><span class="k">02 · EXPLODE</span><b>Bill of materials</b><span>Device demand → part demand. Shared parts link devices together.</span></div>
+      <div><span class="k">03 · SIMULATE</span><b>Shortage risk</b><span>3,000 Monte Carlo runs with correlated demand and late deliveries.</span></div>
+      <div><span class="k">04 · DECIDE</span><b>Cost-based buys</b><span>Newsvendor critical ratio per part. Scenario options scored by net value.</span></div>
+      <div><span class="k">05 · ACT</span><b>Tiered autonomy</b><span>Auto, planner or director approval by cost and reversibility. Audit log.</span></div>
+    </div>
+    <div class="cols" style="margin-top:16px">
+      <div class="card">
+        <h3>Forecast model</h3>
+        <ul class="clean" id="modelFacts"></ul>
+      </div>
+      <div class="card">
+        <h3>Decision logic</h3>
+        <ul class="clean">
+          <li><b>Buy quantity:</b> buy up to the critical-ratio quantile of lead-time demand, CR = Cu / (Cu + Co).</li>
+          <li><b>Cost of being short (Cu):</b> share of short orders lost × device margin per part, plus expedite premium on the rest.</li>
+          <li><b>Cost of holding (Co):</b> unit cost × (holding rate × protection months / 12 + obsolescence).</li>
+          <li><b>Shortage allocation:</b> do nothing = fair share by demand; reallocate = highest-margin devices first.</li>
+          <li><b>Option value:</b> margin on devices that would not ship by April, plus a late-shipment cost (default 15% of margin) on devices shipped late, minus mitigation cost.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What I'd change with real data</h3>
+        <ul class="clean">
+          <li>Replace synthetic history with ERP orders and shipments (e.g. NetSuite), BOMs from the PLM system and supplier dates from planning tools.</li>
+          <li>Use CRM pipeline and customer rollout schedules as the leading signal, and installed-base telemetry for replacement demand.</li>
+          <li>Learn supplier lateness per supplier and lane from receipt history instead of a single on-time rate.</li>
+          <li>Validate against numbers Finance already trusts before any recommendation reaches a planner.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Known limitations</h3>
+        <ul class="clean">
+          <li>All data is synthetic. Product, part and supplier names are generic.</li>
+          <li>The environmental sensor is intermittent and the model loses to seasonal naive there. In production I'd forecast it with a Croston-style method or at a higher level.</li>
+          <li>Finished-goods stock, multi-site allocation and supplier capacity limits are left out.</li>
+          <li>The agent briefing is generated from templates so every number is traceable. In production, an LLM would draft the wording from the same numbers.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="wrap"><footer>Prototype by Sophia Gazula · built with Python (LightGBM, pandas) and a plain JavaScript front end, using Claude Code · synthetic data only</footer></div>
+
+<script src="data.js"></script>
+<script>
+(() => {
+const D = window.APP_DATA;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const P = D.products, C = D.components, H = D.forecastMonths.length;
+const prodById = Object.fromEntries(P.map(p => [p.id, p]));
+const compById = Object.fromEntries(C.map(c => [c.id, c]));
+const supById = Object.fromEntries(D.suppliers.map(s => [s.id, s]));
+const bomP = {}, bomC = {};
+D.bom.forEach(b => { (bomP[b.product] ||= []).push(b); (bomC[b.component] ||= []).push(b); });
+const MLAB = m => new Date(m + "-01T00:00:00").toLocaleString("en-US", { month: "short" });
+const MLABY = m => new Date(m + "-01T00:00:00").toLocaleString("en-US", { month: "short", year: "2-digit" });
+const fmtInt = x => Math.round(x).toLocaleString("en-US");
+const fmtK = x => { const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(a >= 1e7 ? 1 : 2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(a >= 1e5 ? 0 : 1) + "K" : Math.round(x).toString(); };
+const usd = x => (x < 0 ? "−$" : "$") + fmtK(Math.abs(x));
+const pct = (x, d = 0) => (x * 100).toFixed(d) + "%";
+const lc = s => String(s).split(" ").map(w => /[A-Z].*[A-Z]|\d/.test(w) ? w : w.toLowerCase()).join(" ");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ------------------------------------------------------------ quantiles
+const QK = D.quantiles;
+function qAt(qs, u) {
+  u = Math.min(0.995, Math.max(0.005, u));
+  if (u <= QK[0]) return Math.max(0, qs[0] - (QK[0] - u) * (qs[1] - qs[0]) / (QK[1] - QK[0]));
+  if (u >= QK[QK.length - 1]) { const n = QK.length - 1; return qs[n] + (u - QK[n]) * (qs[n] - qs[n - 1]) / (QK[n] - QK[n - 1]); }
+  for (let i = 1; i < QK.length; i++) if (u <= QK[i]) return qs[i - 1] + (u - QK[i - 1]) * (qs[i] - qs[i - 1]) / (QK[i] - QK[i - 1]);
+}
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = mulberry32(20261029);
+const randn = () => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const Phi = x => { const t = 1 / (1 + 0.2316419 * Math.abs(x)); const d = 0.3989423 * Math.exp(-x * x / 2); const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; };
+
+// ------------------------------------------------------- Monte Carlo
+const N = 3000, RHO = 0.6;
+const posByComp = {};
+D.openPOs.forEach(po => (posByComp[po.component_id] ||= []).push(po));
+const MC = {};
+C.forEach(c => {
+  c.openTotal = (posByComp[c.id] || []).reduce((s, p) => s + p.qty, 0);
+  c.protect = H;   // cover the full planning window; a new buy lands at lead time
+  c.single = !c.alt;
+  MC[c.id] = { reqProt: new Float64Array(N), req6: new Float64Array(N), short: 0, firstShort: new Array(H).fill(0), need: new Float32Array(N * H) };
+});
+const LATE = {}; D.openPOs.forEach(po => LATE[po.po] = new Int8Array(N));
+for (let s = 0; s < N; s++) {
+  const dem = {};
+  P.forEach(p => { const z = randn(); dem[p.id] = D.forecast[p.id].map(qs => qAt(qs, Phi(RHO * z + Math.sqrt(1 - RHO * RHO) * randn()))); });
+  C.forEach(c => {
+    const arr = new Array(H + 3).fill(0), on = supById[c.supplier].onTime;
+    (posByComp[c.id] || []).forEach(po => { const r = rnd(); const late = r < on ? 0 : (r < on + (1 - on) * 0.7 ? 1 : 2); LATE[po.po][s] = late; arr[po.month_index + late] += po.qty; });
+    let cumReq = 0, cumSup = c.onHand, shorted = false; const m = MC[c.id];
+    for (let k = 0; k < H; k++) {
+      let need = 0; bomC[c.id].forEach(b => need += b.qty * dem[b.product][k]);
+      m.need[s * H + k] = need; cumReq += need; cumSup += arr[k];
+      if (k === c.protect - 1) m.reqProt[s] = cumReq;
+      if (!shorted && cumReq > cumSup) { shorted = true; m.short++; m.firstShort[k]++; }
+    }
+    m.req6[s] = cumReq;
+  });
+}
+C.forEach(c => { MC[c.id].reqProt.sort(); MC[c.id].req6.sort(); });
+const sq = (arr, q) => arr[Math.min(arr.length - 1, Math.floor(q * arr.length))];
+
+// shortage probability for a part under a plan: pull-ins {po: months earlier}, extra arrivals {monthIdx: qty}
+function evalShort(c, pull, extra) {
+  const m = MC[c.id], pos = posByComp[c.id] || []; let short = 0;
+  const arr = new Float64Array(H + 4);
+  for (let s = 0; s < N; s++) {
+    arr.fill(0);
+    pos.forEach(po => { const f = pull[po.po] || 0, m = po.month_index + LATE[po.po][s]; arr[Math.max(0, m - 1)] += po.qty * f; arr[m] += po.qty * (1 - f); });
+    for (const k in extra) arr[k] += extra[k];
+    let cr = 0, cs = c.onHand;
+    for (let k = 0; k < H; k++) { cr += m.need[s * H + k]; cs += arr[k]; if (cr > cs) { short++; break; } }
+  }
+  return short / N;
+}
+const TARGET_RISK = 0.15, ACT_RISK = 0.40;   // expedite only high-risk parts, aim below 15%
+
+// margin per unit of component, demand-weighted
+C.forEach(c => {
+  let w = 0, m = 0;
+  bomC[c.id].forEach(b => { const d = D.forecast[b.product].reduce((s, q) => s + q[3], 0) * b.qty; w += d; m += d * prodById[b.product].margin / b.qty; });
+  c.marginPerUnit = m / w;
+});
+
+// ------------------------------------------------------- buy plan
+const A = { pLost: 0.15, hold: 0.25, obs: 0.10 };
+function expCost(c, q, cu, co) {
+  const ip = c.onHand + c.openTotal + q, r = MC[c.id].reqProt; let t = 0;
+  for (let i = 0; i < r.length; i++) t += r[i] > ip ? cu * (r[i] - ip) : co * (ip - r[i]);
+  return t / r.length;
+}
+function buyPlan() {
+  return C.map(c => {
+    const cu = A.pLost * c.marginPerUnit + (1 - A.pLost) * c.unitCost * c.expeditePremium;
+    const co = c.unitCost * (A.hold * c.protect / 12 + A.obs);
+    const cr = cu / (cu + co);
+    const target = sq(MC[c.id].reqProt, cr), ip = c.onHand + c.openTotal;
+    let q = Math.max(0, target - ip); if (q > 0) q = Math.ceil(q / c.moq) * c.moq;
+    let q50 = Math.max(0, sq(MC[c.id].reqProt, 0.5) - ip); if (q50 > 0) q50 = Math.ceil(q50 / c.moq) * c.moq;
+    const pShort = MC[c.id].short / N;
+    const fs = MC[c.id].firstShort; let fsMonth = null, best = 0; fs.forEach((v, k) => { if (v > best) { best = v; fsMonth = k; } });
+    // timing fix: if risk stays high after the buy, pull open orders in by a month, earliest first
+    const extra = q > 0 && c.leadMonths < H ? { [c.leadMonths]: q } : {};
+    let after = q > 0 ? evalShort(c, {}, extra) : pShort;
+    const pull = {}, pulls = [];
+    if (after >= ACT_RISK) {
+      for (const po of [...(posByComp[c.id] || [])].filter(p => p.month_index >= 1).sort((a, b) => a.month_index - b.month_index)) {
+        pulls.push(po);
+        for (const f of [0.25, 0.5, 0.75, 1]) { pull[po.po] = f; after = evalShort(c, pull, extra); if (after < TARGET_RISK) break; }
+        if (after < TARGET_RISK) break;
+      }
+    }
+    const pullCost = pulls.reduce((s, po) => s + po.qty * pull[po.po] * c.unitCost * c.expeditePremium, 0);
+    return { c, cu, co, cr, q, value: q * c.unitCost, pShort, after, pull, pulls, pullCost, extra, fsMonth: pShort > 0.05 ? fsMonth : null,
+      need50: sq(MC[c.id].req6, 0.5), need90: sq(MC[c.id].req6, 0.9), ip,
+      costNone: expCost(c, 0, cu, co), costRec: expCost(c, q, cu, co), costP50: expCost(c, q50, cu, co) };
+  });
+}
+function actionText(r) {
+  const parts = [];
+  if (r.q > 0) parts.push(`<b>Buy ${fmtInt(r.q)}</b> · ${usd(r.value)}<span class="sub">to P${Math.round(r.cr * 100)} (critical ratio ${r.cr.toFixed(2)}) · arrives ${r.c.leadMonths < H ? MLAB(D.forecastMonths[r.c.leadMonths]) : "after Apr"}</span>`);
+  if (r.pulls.length) parts.push(`<b>Pull in ${fmtInt(r.pulls.reduce((s, p) => s + p.qty * r.pull[p.po], 0))} units by 1 mo</b> · ${usd(r.pullCost)}<span class="sub">${r.pulls.length} open PO${r.pulls.length > 1 ? "s" : ""} · ${r.pulls.map(p => p.po).join(", ")}</span>`);
+  return parts.length ? parts.join("<br>") : '<span style="color:var(--ink-3)">Covered</span>';
+}
+const status = p => p >= 0.4 ? ["crit", "High"] : p >= 0.15 ? ["warn", "Watch"] : ["good", "Low"];
+
+// ------------------------------------------------------- scenario
+const S = { sup: "S1", delay: 2, dl: 3, lateCost: 0.15 };
+function simulate(o) {
+  const dem = P.map(p => D.forecast[p.id].map(q => q[S.dl]));
+  const arr = {}; let expCostTot = 0, altCost = 0; const altUsed = [];
+  C.forEach(c => { arr[c.id] = new Array(H + 8).fill(0); });
+  const planBy = Object.fromEntries(PLAN.map(r => [r.c.id, r]));
+  C.forEach(c => { const r = planBy[c.id]; if (r) for (const k in r.extra) arr[c.id][k] += r.extra[k]; });
+  D.openPOs.forEach(po => {
+    const f = planBy[po.component_id]?.pull[po.po] || 0;
+    if (f > 0 && po.month_index > 0) { arr[po.component_id][po.month_index - 1 + (po.supplier_id === S.sup ? S.delay : 0)] += po.qty * f; }
+    const qty = po.qty * (1 - f);
+    let m = po.month_index;
+    if (po.supplier_id === S.sup && S.delay > 0) {
+      const slip = o.expedite ? Math.max(0, S.delay - 1) : S.delay;
+      if (o.expedite) expCostTot += qty * compById[po.component_id].unitCost * compById[po.component_id].expeditePremium;
+      m += slip;
+    }
+    arr[po.component_id][m] += qty;
+  });
+  if (o.alt && S.delay > 0) C.filter(c => c.supplier === S.sup && c.alt).forEach(c => {
+    const qty = (posByComp[c.id] || []).filter(p => p.month_index + S.delay >= c.alt.leadMonths).reduce((s, p) => s + p.qty, 0);
+    if (qty > 0) { arr[c.id][c.alt.leadMonths] += qty; altCost += qty * c.unitCost * (c.alt.premium + 0.1); altUsed.push(c.id); }
+  });
+  const avail = Object.fromEntries(C.map(c => [c.id, c.onHand]));
+  const backlog = P.map(() => 0);
+  const out = { months: [], late: P.map(() => 0), onTime: P.map(() => 0), endBacklog: null, binding: {} };
+  for (let k = 0; k < H; k++) {
+    C.forEach(c => avail[c.id] += arr[c.id][k]);
+    const want = P.map((p, i) => dem[i][k] + backlog[i]);
+    const built = P.map(() => 0);
+    if (o.prioritize) {
+      P.map((p, i) => i).sort((a, b) => P[b].margin - P[a].margin).forEach(i => {
+        let cap = want[i]; bomP[P[i].id].forEach(b => cap = Math.min(cap, Math.floor(avail[b.component] / b.qty)));
+        cap = Math.max(0, cap); built[i] = cap; bomP[P[i].id].forEach(b => avail[b.component] -= cap * b.qty);
+      });
+    } else {
+      const ratio = {};
+      C.forEach(c => { let need = 0; bomC[c.id].forEach(b => need += b.qty * want[P.findIndex(p => p.id === b.product)]); ratio[c.id] = need > 0 ? Math.min(1, avail[c.id] / need) : 1; });
+      P.forEach((p, i) => {
+        let r = 1, bind = null; bomP[p.id].forEach(b => { if (ratio[b.component] < r) { r = ratio[b.component]; bind = b.component; } });
+        built[i] = Math.floor(want[i] * r); if (bind && r < 1) (out.binding[p.id] ||= new Set()).add(bind);
+      });
+      P.forEach((p, i) => bomP[p.id].forEach(b => avail[b.component] -= built[i] * b.qty));
+    }
+    P.forEach((p, i) => {
+      const fromBacklog = Math.min(backlog[i], built[i]);
+      out.late[i] += fromBacklog; out.onTime[i] += built[i] - fromBacklog;
+      backlog[i] = want[i] - built[i];
+    });
+    out.months.push({ demandRev: P.reduce((s, p, i) => s + dem[i][k] * p.revenue, 0), builtRev: P.reduce((s, p, i) => s + built[i] * p.revenue, 0) });
+  }
+  out.endBacklog = backlog;
+  out.revAtRisk = P.reduce((s, p, i) => s + backlog[i] * p.revenue, 0);
+  out.marginAtRisk = P.reduce((s, p, i) => s + backlog[i] * p.margin, 0);
+  out.lateRev = P.reduce((s, p, i) => s + out.late[i] * p.revenue, 0);
+  out.lateMargin = P.reduce((s, p, i) => s + out.late[i] * p.margin, 0);
+  out.cost = expCostTot + altCost; out.altUsed = altUsed;
+  return out;
+}
+function scenario() {
+  const hasAlt = C.some(c => c.supplier === S.sup && c.alt);
+  const defs = [
+    { id: "none", name: "Do nothing", desc: "Fair-share allocation of scarce parts", o: {} },
+    { id: "re", name: "Reallocate", desc: "Build highest-margin devices first", o: { prioritize: true } },
+    { id: "ex", name: "Expedite", desc: "Pay premium to pull delayed orders in by 1 month", o: { expedite: true } },
+    { id: "exre", name: "Expedite + reallocate", desc: "Both of the above", o: { expedite: true, prioritize: true } },
+  ];
+  if (hasAlt) defs.push({ id: "alt", name: "Alternate source + reallocate", desc: "Buy delayed volume from qualified second source", o: { alt: true, prioritize: true } },
+                        { id: "all", name: "All three", desc: "Alternate source, expedite and reallocate", o: { alt: true, expedite: true, prioritize: true } });
+  const base = simulate({});
+  const res = defs.map(d => ({ ...d, r: simulate(d.o) }));
+  res.forEach(x => { x.value = (base.marginAtRisk - x.r.marginAtRisk) + S.lateCost * (base.lateMargin - x.r.lateMargin) - x.r.cost; });
+  let best = res[0]; res.forEach(x => { if (x.value > best.value + 1) best = x; });
+  const shocked = C.filter(c => c.supplier === S.sup);
+  return { base, res, best, hasAlt, shocked };
+}
+
+// ------------------------------------------------------------ charts
+function chartSize(el, ratio) { const w = Math.max(300, el.clientWidth || 600); return { w, h: Math.round(Math.max(220, w * ratio)) }; }
+function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 3 ? 3 : n <= 4 ? 4 : n <= 5 ? 5 : n <= 6 ? 6 : n <= 8 ? 8 : 10) * p; }
+
+function renderFcChart(pid) {
+  const el = $("#fcChart"), { w, h } = chartSize(el, 0.42);
+  const hist = D.history[pid], fc = D.forecast[pid], hm = D.historyMonths, fm = D.forecastMonths;
+  const all = [...hm, ...fm], n = all.length;
+  const m = { l: 52, r: 12, t: 12, b: 26 };
+  const ymax = niceMax(Math.max(...hist, ...fc.map(q => q[5])) * 1.05);
+  const x = i => m.l + (i + 0.5) * (w - m.l - m.r) / n, y = v => h - m.b - v / ymax * (h - m.t - m.b);
+  let g = "";
+  for (let t = 0; t <= 4; t++) { const v = ymax * t / 4; g += `<line x1="${m.l}" x2="${w - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${fmtK(v)}</text>`; }
+  const step = w < 520 ? 6 : 3;
+  all.forEach((mo, i) => { if (i % step === 0 || i === hm.length) g += `<text x="${x(i)}" y="${h - 8}" text-anchor="middle">${MLABY(mo)}</text>`; });
+  const fi = i => hm.length + i;
+  const band = (lo, hi) => { const pts = fc.map((q, i) => `${x(fi(i))},${y(q[hi])}`).join(" ") + " " + fc.map((q, i) => `${x(fi(i))},${y(q[lo])}`).reverse().join(" "); return pts; };
+  const lastX = x(hm.length - 1), lastY = y(hist[hist.length - 1]);
+  g += `<rect x="${(x(hm.length - 1) + x(hm.length)) / 2}" y="${m.t}" width="${w - m.r - (x(hm.length - 1) + x(hm.length)) / 2}" height="${h - m.t - m.b}" fill="var(--surface-2)" opacity=".6"/>`;
+  g += `<polygon points="${lastX},${lastY} ${band(1, 5)}" fill="var(--band-1)"/>`;
+  g += `<polygon points="${band(2, 4)}" fill="var(--band-2)"/>`;
+  g += `<polyline points="${hist.map((v, i) => `${x(i)},${y(v)}`).join(" ")}" fill="none" stroke="var(--ink-2)" stroke-width="2" stroke-linejoin="round"/>`;
+  g += `<polyline points="${lastX},${lastY} ${fc.map((q, i) => `${x(fi(i))},${y(q[3])}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
+  fc.forEach((q, i) => g += `<circle cx="${x(fi(i))}" cy="${y(q[3])}" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`);
+  g += `<line id="fcCross" x1="0" x2="0" y1="${m.t}" y2="${h - m.b}" stroke="var(--ink-3)" stroke-dasharray="3 3" opacity="0"/>`;
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Monthly units, actual and forecast">${g}<rect x="${m.l}" y="${m.t}" width="${w - m.l - m.r}" height="${h - m.t - m.b}" fill="transparent" id="fcHit"/></svg><div class="tip" hidden></div>`;
+  const tip = el.querySelector(".tip"), cross = el.querySelector("#fcCross");
+  const hit = el.querySelector("#fcHit");
+  hit.addEventListener("mousemove", e => {
+    const r = el.querySelector("svg").getBoundingClientRect(); const px = (e.clientX - r.left) * w / r.width;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((px - m.l) / ((w - m.l - m.r) / n))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", "1");
+    let html = `<b>${MLABY(all[i])}</b>`;
+    if (i < hm.length) html += `<div class="row"><span>Actual</span><span>${fmtInt(hist[i])}</span></div>`;
+    else { const q = fc[i - hm.length]; html += `<div class="row"><span>P90</span><span>${fmtInt(q[5])}</span></div><div class="row"><span>P50</span><span>${fmtInt(q[3])}</span></div><div class="row"><span>P10</span><span>${fmtInt(q[1])}</span></div>`; }
+    tip.innerHTML = html; tip.hidden = false;
+    tip.style.left = Math.min(r.width - 80, Math.max(80, x(i) * r.width / w)) + "px"; tip.style.top = (m.t * r.height / h + 30) + "px";
+  });
+  hit.addEventListener("mouseleave", () => { tip.hidden = true; cross.setAttribute("opacity", "0"); });
+}
+
+function renderShChart(sc) {
+  const el = $("#shChart"), { w, h } = chartSize(el, 0.46);
+  const a = sc.base.months, b = sc.best.r.months, n = H;
+  const m = { l: 56, r: 12, t: 12, b: 26 };
+  const ymax = niceMax(Math.max(...a.map(v => v.demandRev), ...b.map(v => v.builtRev)) * 1.08);
+  const slot = (w - m.l - m.r) / n, bw = Math.min(28, slot * 0.3);
+  const xc = i => m.l + (i + 0.5) * slot, y = v => h - m.b - v / ymax * (h - m.t - m.b);
+  let g = "";
+  for (let t = 0; t <= 4; t++) { const v = ymax * t / 4; g += `<line x1="${m.l}" x2="${w - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${usd(v)}</text>`; }
+  const bar = (cx, v, fill) => { const top = y(v), bot = y(0), hh = Math.max(0, bot - top), r = Math.min(4, hh); return `<path d="M${cx - bw / 2},${bot} V${top + r} Q${cx - bw / 2},${top} ${cx - bw / 2 + r},${top} H${cx + bw / 2 - r} Q${cx + bw / 2},${top} ${cx + bw / 2},${top + r} V${bot} Z" fill="${fill}"/>`; };
+  for (let i = 0; i < n; i++) {
+    g += bar(xc(i) - bw / 2 - 1, a[i].builtRev, "var(--neutral-mark)");
+    g += bar(xc(i) + bw / 2 + 1, b[i].builtRev, "var(--accent)");
+    g += `<text x="${xc(i)}" y="${h - 8}" text-anchor="middle">${MLABY(D.forecastMonths[i])}</text>`;
+  }
+  g += `<polyline points="${a.map((v, i) => `${xc(i)},${y(v.demandRev)}`).join(" ")}" fill="none" stroke="var(--ink-2)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  a.forEach((v, i) => g += `<circle cx="${xc(i)}" cy="${y(v.demandRev)}" r="3.5" fill="var(--ink-2)" stroke="var(--surface)" stroke-width="2"/>`);
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Device revenue by month">${g}<rect x="${m.l}" y="${m.t}" width="${w - m.l - m.r}" height="${h - m.t - m.b}" fill="transparent" id="shHit"/></svg><div class="tip" hidden></div>`;
+  const tip = el.querySelector(".tip"), hit = el.querySelector("#shHit");
+  hit.addEventListener("mousemove", e => {
+    const r = el.querySelector("svg").getBoundingClientRect(); const px = (e.clientX - r.left) * w / r.width;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((px - m.l) / slot)));
+    tip.innerHTML = `<b>${MLABY(D.forecastMonths[i])}</b><div class="row"><span>Demand</span><span>${usd(a[i].demandRev)}</span></div><div class="row"><span>Do nothing</span><span>${usd(a[i].builtRev)}</span></div><div class="row"><span>${esc(sc.best.name)}</span><span>${usd(b[i].builtRev)}</span></div>`;
+    tip.hidden = false; tip.style.left = Math.min(r.width - 90, Math.max(90, xc(i) * r.width / w)) + "px"; tip.style.top = "40px";
+  });
+  hit.addEventListener("mouseleave", () => tip.hidden = true);
+}
+
+function bars(el, rows, max) {
+  el.innerHTML = rows.map(r => `<div class="mrow ${r.me ? "me" : ""}"><span>${esc(r.label)}</span><div class="bar"><span style="width:${Math.max(1, r.v / max * 100)}%"></span></div><span class="val">${r.text}</span></div>`).join("");
+}
+
+// ------------------------------------------------------------ views
+let curProd = "CAM-RD";
+function renderForecast() {
+  $("#prodChips").innerHTML = P.map(p => `<button class="chip" aria-pressed="${p.id === curProd}" data-p="${p.id}">${esc(p.name)}</button>`).join("");
+  $$("#prodChips .chip").forEach(b => b.onclick = () => { curProd = b.dataset.p; renderForecast(); });
+  const p = prodById[curProd];
+  $("#fcTitle").textContent = `${p.name} · monthly units`;
+  renderFcChart(curProd);
+  const s = D.backtest.by_product[curProd], o = D.backtest.overall;
+  $("#btHint").textContent = `${D.backtest.backtest_origins.length} rolling forecast origins (${MLABY(D.backtest.backtest_origins[0])}–${MLABY(D.backtest.backtest_origins.at(-1))}), 1–6 months ahead. Lower is better.`;
+  const max = Math.max(s.wape_model, s.wape_seasonal_naive, s.wape_moving_avg, o.wape_seasonal_naive, o.wape_moving_avg);
+  bars($("#btBars"), [
+    { label: "This model", v: s.wape_model, text: pct(s.wape_model), me: true },
+    { label: "Same month LY", v: s.wape_seasonal_naive, text: pct(s.wape_seasonal_naive) },
+    { label: "3-mo average", v: s.wape_moving_avg, text: pct(s.wape_moving_avg) },
+  ], max);
+  const better = 1 - s.wape_model / Math.min(s.wape_seasonal_naive, s.wape_moving_avg);
+  $("#btStats").innerHTML = `<div><div class="l">vs. best baseline</div><div class="v">${better >= 0 ? "−" : "+"}${pct(Math.abs(better))}</div></div><div><div class="l">Bias</div><div class="v">${s.bias_model >= 0 ? "+" : "−"}${pct(Math.abs(s.bias_model))}</div></div><div><div class="l">P10–P90 coverage</div><div class="v">${pct(s.coverage_p10_p90)}</div></div>`;
+  const fi = Object.entries(D.backtest.feature_importance).slice(0, 6);
+  const names = { pipeline: "Sales pipeline", same_month_ly: "Same month last year", target_month: "Calendar month", trend_yoy: "Year-over-year trend", product: "Device", horizon: "Months ahead", mean6: "6-month average", mean3: "3-month average", lag0: "Last month", lag1: "Two months ago", lag2: "Three months ago" };
+  bars($("#fiBars"), fi.map(([k, v], i) => ({ label: names[k] || k, v, text: pct(v), me: i === 0 })), fi[0][1]);
+  const fc = D.forecast[curProd];
+  $("#fcTable").innerHTML = `<thead><tr><th>${esc(p.name)}</th>${D.forecastMonths.map(m => `<th class="n">${MLABY(m)}</th>`).join("")}<th class="n">6-mo total</th></tr></thead><tbody>` +
+    [["P90", 5], ["P50", 3], ["P10", 1]].map(([l, j]) => `<tr><td>${l}</td>${fc.map(q => `<td class="n">${fmtInt(q[j])}</td>`).join("")}<td class="n">${fmtInt(fc.reduce((s, q) => s + q[j], 0))}</td></tr>`).join("") +
+    `<tr><td>Revenue at P50</td>${fc.map(q => `<td class="n">${usd(q[3] * p.revenue)}</td>`).join("")}<td class="n">${usd(fc.reduce((s, q) => s + q[3], 0) * p.revenue)}</td></tr></tbody>`;
+}
+
+let PLAN = [];
+function renderRisk() {
+  $("#pLostV").textContent = pct(A.pLost); $("#holdV").textContent = pct(A.hold); $("#obsV").textContent = pct(A.obs);
+  PLAN = buyPlan();
+  const rows = [...PLAN].sort((a, b) => b.pShort - a.pShort);
+  $("#riskTable").innerHTML = `<thead><tr><th>Part</th><th>Supplier</th><th class="n">On hand + on order</th><th class="n">6-mo need P50 / P90</th><th>Shortage risk</th><th>Recommended action</th><th>Risk after</th></tr></thead><tbody>` +
+    rows.map(r => { const [cls, lab] = status(r.pShort); const s = supById[r.c.supplier];
+      const col = cls === "crit" ? "var(--crit)" : cls === "warn" ? "var(--warn)" : "var(--good)";
+      return `<tr><td><b>${esc(r.c.name)}</b><span class="sub mono">${r.c.id} · $${r.c.unitCost.toFixed(2)} · ${r.c.leadMonths} mo lead</span></td>
+      <td class="wrap" style="min-width:160px">${esc(s.name)}${r.c.single ? ' <span class="flag">· single source</span>' : ""}<span class="sub">${esc(s.region)} · ${pct(s.onTime)} on time</span></td>
+      <td class="n">${fmtK(r.c.onHand + r.c.openTotal)}<span class="sub">${fmtK(r.c.onHand)} + ${fmtK(r.c.openTotal)}</span></td>
+      <td class="n">${fmtK(r.need50)} / ${fmtK(r.need90)}</td>
+      <td><span class="prob"><span class="pill ${cls}">${lab}</span><span class="b"><span style="width:${r.pShort * 100}%;background:${col}"></span></span><span class="mono">${pct(r.pShort)}</span></span>${r.fsMonth === null ? "" : `<span class="sub">most often short first in ${MLABY(D.forecastMonths[r.fsMonth])}</span>`}</td>
+      <td class="wrap">${actionText(r)}</td>
+      <td>${(() => { const [c2, l2] = status(r.after); return `<span class="pill ${c2}">${pct(r.after)}</span>`; })()}</td></tr>`; }).join("") + "</tbody>";
+  const tot = k => PLAN.reduce((s, r) => s + r[k], 0);
+  const none = tot("costNone"), p50 = tot("costP50"), rec = tot("costRec");
+  bars($("#policyBars"), [
+    { label: "Do nothing", v: none, text: usd(none) },
+    { label: "Buy to P50", v: p50, text: usd(p50) },
+    { label: "Recommended", v: rec, text: usd(rec), me: true },
+  ], Math.max(none, p50, rec));
+  const hi = rows.filter(r => r.pShort >= 0.4), buyTot = tot("value"), pullTot = tot("pullCost");
+  const hiAfter = rows.filter(r => r.after >= 0.4).length, timing = rows.filter(r => r.pulls.length && r.q === 0);
+  const cheap = rows.filter(r => r.q > 0 && r.c.unitCost < 5);
+  $("#riskCallout").innerHTML = `<b>What this says.</b> ${hi.length} part${hi.length === 1 ? "" : "s"} ${hi.length === 1 ? "has" : "have"} a 40%+ chance of running short before April${hi.length ? ": " + hi.map(r => esc(lc(r.c.name))).join(", ") : ""}. After the plan, ${hiAfter} ${hiAfter === 1 ? "does" : "do"}. The plan spends ${usd(buyTot)} on new buys and ${usd(pullTot)} on expediting.` +
+    (timing.length ? `<br><br><b>Timing, not quantity.</b> For ${timing.map(r => esc(lc(r.c.name))).join(", ")}, enough is already on order but it lands too late, so the fix is pulling orders in, not buying more.` : "") +
+    `<br><br><b>Quantity.</b> The cost-based buy rule cuts expected cost from ${usd(none)} (do nothing) to ${usd(rec)}, ${usd(p50 - rec)} less than buying to the median forecast.` +
+    (cheap.length ? `<br><br>Cheap parts that block expensive devices get a high critical ratio, so the plan buys deep on them (${cheap.map(r => esc(lc(r.c.name))).join(", ")}). Expensive parts get a tighter buffer.` : "") +
+    `<br><br>Raise <b>short orders lost</b> and the plan buys more; raise <b>obsolescence risk</b> and it buys less.`;
+  renderKpis();
+}
+
+let SC = null;
+function renderShock() {
+  $("#shDelayV").textContent = S.delay + (S.delay === 1 ? " month" : " months"); $("#lateCostV").textContent = pct(S.lateCost);
+  SC = scenario();
+  const { base, res, best, shocked } = SC, sup = supById[S.sup];
+  renderShChart(SC);
+  const single = shocked.filter(c => c.single);
+  $("#shSummary").innerHTML = `<h3>${esc(sup.name)} · ${S.delay} month${S.delay === 1 ? "" : "s"} late</h3>
+    <p class="hint">${esc(sup.region)} · supplies ${shocked.map(c => esc(lc(c.name))).join(", ")}${single.length ? ` · <span class="flag">single source for ${single.map(c => esc(lc(c.name))).join(", ")}</span>` : ""}</p>
+    <div class="stat-pair" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><div class="l">Revenue not shipped by Apr · do nothing</div><div class="v" style="color:${base.revAtRisk >= 100000 ? "var(--crit)" : "inherit"}">${usd(base.revAtRisk)}</div></div>
+      <div><div class="l">Revenue shipped late · do nothing</div><div class="v" style="color:${base.lateRev >= 100000 ? "var(--crit)" : "inherit"}">${usd(base.lateRev)}</div></div>
+      <div><div class="l">Recommended</div><div class="v" style="font-size:14px;font-family:var(--font-ui);font-weight:600">${esc(best.name)}</div></div>
+      <div><div class="l">Net value of recommendation</div><div class="v" style="color:var(--good)">${usd(best.value)}</div></div>
+    </div>
+    <p style="margin:12px 0 0;color:var(--ink-2);font-size:13px">${S.delay === 0 ? "No delay applied. This is the base plan." : `With ${esc(lc(best.name))}, revenue not shipped by April falls to ${usd(best.r.revAtRisk)} and late revenue to ${usd(best.r.lateRev)}, for ${usd(best.r.cost)} of spend.`}${!SC.hasAlt && S.delay > 0 ? " No qualified second source exists for these parts, which is itself a finding." : ""}</p>`;
+  $("#optTable").innerHTML = `<thead><tr><th>Option</th><th class="n">Not shipped by Apr</th><th class="n">Shipped late</th><th class="n">Margin at risk</th><th class="n">Cost</th><th class="n">Net value</th></tr></thead><tbody>` +
+    res.map(x => `<tr class="${x === best ? "best" : ""}"><td><b>${esc(x.name)}</b>${x === best ? ' <span class="pill good">Recommended</span>' : ""}<span class="sub">${esc(x.desc)}</span></td><td class="n">${usd(x.r.revAtRisk)}</td><td class="n">${usd(x.r.lateRev)}</td><td class="n">${usd(x.r.marginAtRisk)}</td><td class="n">${usd(x.r.cost)}</td><td class="n"><b>${x.id === "none" ? "—" : usd(x.value)}</b></td></tr>`).join("") + "</tbody>";
+  $("#impTable").innerHTML = `<thead><tr><th>Device</th><th>Blocked by</th><th class="n">Units shipped late</th><th class="n">Units not shipped by Apr</th><th class="n">Revenue delayed or lost</th></tr></thead><tbody>` +
+    P.map((p, i) => ({ p, i, bl: base.endBacklog[i], v: (base.endBacklog[i] + base.late[i]) * p.revenue })).sort((a, b) => b.v - a.v).map(({ p, i, bl, v }) => {
+      const bind = base.binding[p.id] ? [...base.binding[p.id]].map(id => esc(lc(compById[id].name))).join(", ") : "—";
+      return `<tr><td><b>${esc(p.name)}</b></td><td>${bind}</td><td class="n">${fmtInt(base.late[i])}</td><td class="n">${fmtInt(bl)}</td><td class="n">${usd(v)}</td></tr>`; }).join("") + "</tbody>";
+  renderKpis();
+}
+
+// ------------------------------------------------------------ agent
+let LIMIT = 250000;
+const decisions = {}; // id -> "approved" | "rejected"
+const audit = [];
+const nowStr = (() => { let t = new Date("2026-10-29T08:02:00"); return () => { t = new Date(t.getTime() + 37000); return t.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }); }; })();
+
+function buildActions() {
+  const acts = [], hi = PLAN.filter(r => r.pShort >= 0.4), watch = PLAN.filter(r => r.pShort >= 0.15 && r.pShort < 0.4);
+  if (hi.length + watch.length) acts.push({ id: "flag", tier: 1, title: `Flag ${hi.length + watch.length} parts on the planner risk board`, why: `${hi.length} high risk, ${watch.length} on watch. Free and reversible.`, cost: 0, effect: "Risk board updated" });
+  if (hi.length) acts.push({ id: "slack", tier: 1, title: "Post shortage alert to #supply-planning", why: hi.map(r => `${r.c.name}: ${pct(r.pShort)} chance short, first in ${MLAB(D.forecastMonths[r.fsMonth ?? 0])}`).join(" · "), cost: 0, effect: "Slack message posted" });
+  const sc = SC, best = sc.best;
+  if (S.delay > 0 && sc.base.revAtRisk + sc.base.lateRev > 0) {
+    const tot = P.reduce((s, p, i) => s + (sc.base.endBacklog[i] + sc.base.late[i]) * p.revenue, 0);
+    const affected = P.filter((p, i) => (sc.base.endBacklog[i] + sc.base.late[i]) * p.revenue > 0.01 * tot).map(p => p.name);
+    acts.push({ id: "acct", tier: 1, title: "Warn account teams about orders likely to slip", why: `${supById[S.sup].name} delay affects ${affected.join(", ")}.`, cost: 0, effect: "CRM tasks created" });
+  }
+  PLAN.filter(r => r.pulls.length).sort((a, b) => b.pullCost - a.pullCost).forEach(r => {
+    acts.push({ id: "pull-" + r.c.id, tier: r.pullCost > LIMIT ? 3 : 2, title: `Expedite ${r.pulls.map(p => p.po).join(", ")} by 1 month · ${r.c.name}`, why: `Pull ${fmtInt(r.pulls.reduce((s, p) => s + p.qty * r.pull[p.po], 0))} units forward. Shortage risk ${pct(r.pShort)} → ${pct(r.after)} with the buy plan.`, cost: r.pullCost, effect: "Pull-in request sent to supplier" });
+  });
+  PLAN.filter(r => r.q > 0).sort((a, b) => b.value - a.value).forEach(r => {
+    const tier = r.value > LIMIT ? 3 : 2;
+    acts.push({ id: "po-" + r.c.id, tier, title: `Place PO: ${fmtInt(r.q)} × ${r.c.name}`, why: `${pct(r.pShort)} shortage risk. Buy to P${Math.round(r.cr * 100)} of ${r.c.protect}-month demand (critical ratio ${r.cr.toFixed(2)}). Expected cost falls ${usd(r.costNone - r.costRec)}.`, cost: r.value, effect: "PO draft created in ERP" });
+  });
+  if (S.delay > 0 && best.id !== "none") {
+    if (best.o.prioritize) acts.push({ id: "realloc", tier: 2, title: "Switch allocation to highest-margin devices first", why: "No spend, but it changes which customers ship first, so a planner signs off.", cost: 0, effect: "Allocation rule updated" });
+    if (best.o.expedite) { const c = sc.res.find(x => x.id === "ex")?.r.cost ?? 0; acts.push({ id: "exp", tier: c > LIMIT ? 3 : 2, title: `Expedite delayed ${lc(supById[S.sup].name)} orders`, why: `Pulls orders in by 1 month. Part of the recommended plan worth ${usd(best.value)} net.`, cost: c, effect: "Expedite request sent to supplier" }); }
+    if (best.o.alt) acts.push({ id: "alt", tier: 3, title: `Activate second source for ${best.r.altUsed.map(id => lc(compById[id].name)).join(", ")}`, why: "Commits spend with a new supplier, so it goes to a director.", cost: best.r.cost - (best.o.expedite ? (sc.res.find(x => x.id === "ex")?.r.cost ?? 0) : 0), effect: "Alternate-source PO drafted" });
+  }
+  const singles = C.filter(c => c.single && c.supplier === S.sup && bomC[c.id].length >= 3);
+  if (S.delay > 0 && singles.length) acts.push({ id: "qual", tier: 3, title: `Start qualifying a second source for ${singles.map(c => lc(c.name)).join(", ")}`, why: `Single-sourced part used in ${bomC[singles[0].id].length} devices. Strategic decision, not urgent spend.`, cost: 0, effect: "Sourcing project opened" });
+  return acts;
+}
+
+function renderAgent() {
+  $("#limitV").textContent = usd(LIMIT);
+  const acts = buildActions();
+  acts.filter(a => a.tier === 1 && !decisions[a.id]).forEach(a => { decisions[a.id] = "auto"; audit.unshift({ t: nowStr(), who: "Agent", what: a.title, out: a.effect }); });
+  const sc = SC, best = sc.best, hi = PLAN.filter(r => r.pShort >= 0.4);
+  const pending = acts.filter(a => a.tier > 1 && !decisions[a.id]);
+  const p2 = pending.filter(a => a.tier === 2).length, p3 = pending.filter(a => a.tier === 3).length;
+  const buyTot = PLAN.reduce((s, r) => s + r.value + r.pullCost, 0);
+  const affected = P.map((p, i) => ({ p, v: (sc.base.endBacklog[i] + sc.base.late[i]) * p.revenue })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 2).map(x => x.p.name);
+  let html = `<div class="who"><span class="dot"></span>Agent briefing · October 2026 month-end · generated from the numbers on steps 1–3</div>`;
+  if (S.delay > 0) html += `<p><b>${esc(supById[S.sup].name)} is ${S.delay} month${S.delay === 1 ? "" : "s"} late.</b> Without action, ${sc.base.revAtRisk >= 100000 ? `${usd(sc.base.revAtRisk)} of device revenue misses the April window and ${usd(sc.base.lateRev)} ships late` : `${usd(sc.base.lateRev)} of device revenue ships late`}${affected.length ? `, mostly ${esc(affected.join(" and "))}` : ""}. The best option is <b>${esc(lc(best.name))}</b>: it costs ${usd(best.r.cost)} and is worth ${usd(best.value)} net.${!sc.hasAlt ? " These parts have no qualified second source, so I've proposed starting one." : ""}</p>`;
+  html += `<p>In the base forecast, ${hi.length} part${hi.length === 1 ? " is" : "s are"} at high shortage risk${hi.length ? ` (${hi.map(r => `${esc(lc(r.c.name))} ${pct(r.pShort)}`).join(", ")})` : ""}. The plan fixes that with ${usd(buyTot)} of new buys and pull-ins.</p>`;
+  html += `<p>I've done ${acts.filter(a => a.tier === 1).length} low-risk actions myself. ${p2 + p3 ? `${p2} need${p2 === 1 ? "s" : ""} a planner and ${p3} need${p3 === 1 ? "s" : ""} a director.` : "Nothing is waiting for approval."}</p>`;
+  $("#brief").innerHTML = html;
+  const tierLab = { 1: "Auto", 2: "Planner", 3: "Director" };
+  $("#queue").innerHTML = acts.map(a => {
+    const d = decisions[a.id];
+    const right = a.tier === 1 ? `<span class="state ok">Done by agent</span>` : d === "approved" ? `<span class="state ok">Approved</span>` : d === "rejected" ? `<span class="state no">Rejected</span>` :
+      `<div class="btns"><button class="btn" data-a="${a.id}" data-d="rejected">Reject</button><button class="btn primary" data-a="${a.id}" data-d="approved">Approve</button></div>`;
+    return `<div class="act"><div><div class="meta"><span class="pill tier-${a.tier}">${tierLab[a.tier]}</span>${a.cost ? `<span class="mono" style="font-size:12px;color:var(--ink-2)">${usd(a.cost)}</span>` : ""}</div><div class="t">${esc(a.title)}</div><div class="r">${esc(a.why)}</div></div>${right}</div>`;
+  }).join("");
+  $$("#queue [data-a]").forEach(b => b.onclick = () => {
+    const a = acts.find(x => x.id === b.dataset.a); decisions[a.id] = b.dataset.d;
+    audit.unshift({ t: nowStr(), who: a.tier === 3 ? "You (director)" : "You (planner)", what: a.title, out: b.dataset.d === "approved" ? a.effect : "Rejected, no action" });
+    renderAgent();
+  });
+  $("#audit").innerHTML = `<thead><tr><th>Time</th><th>By</th><th>Action</th><th>Result</th></tr></thead><tbody>` +
+    (audit.length ? audit.map(e => `<tr><td class="mono">${e.t}</td><td>${esc(e.who)}</td><td style="white-space:normal;min-width:180px">${esc(e.what)}</td><td style="white-space:normal">${esc(e.out)}</td></tr>`).join("") : `<tr><td colspan="4" style="color:var(--ink-3)">No actions yet</td></tr>`) + "</tbody>";
+  renderKpis(pending.length);
+}
+
+// ------------------------------------------------------------ KPIs
+let pendingCount = null;
+function renderKpis(pend) {
+  if (pend !== undefined) pendingCount = pend;
+  if (!PLAN.length || !SC) return;
+  const hi = PLAN.filter(r => r.pShort >= 0.4).length, hiAfter = PLAN.filter(r => r.after >= 0.4).length, buy = PLAN.reduce((s, r) => s + r.value + r.pullCost, 0);
+  if (pendingCount === null) pendingCount = buildActions().filter(a => a.tier > 1 && !decisions[a.id]).length;
+  $("#kpis").innerHTML = `
+    <div class="kpi ${SC.base.revAtRisk + SC.base.lateRev > 0 ? "alert" : ""}"><div class="l">Device revenue delayed or lost</div><div class="v">${usd(SC.base.revAtRisk + SC.base.lateRev)}</div><div class="d">${S.delay ? `${esc(supById[S.sup].name)} +${S.delay} mo · do nothing` : "Base plan, no supplier delay"}</div></div>
+    <div class="kpi ${hi ? "alert" : ""}"><div class="l">Parts at high shortage risk</div><div class="v">${hi} <span style="font-size:14px;color:var(--ink-3)">of ${C.length}</span></div><div class="d">40%+ chance short · ${hiAfter} after plan</div></div>
+    <div class="kpi"><div class="l">Plan spend</div><div class="v">${usd(buy)}</div><div class="d">New buys + expediting</div></div>
+    <div class="kpi"><div class="l">Actions awaiting approval</div><div class="v">${pendingCount}</div><div class="d">Planner + director</div></div>`;
+}
+
+// ------------------------------------------------------------ wiring
+function renderMethod() {
+  const o = D.backtest.overall;
+  $("#modelFacts").innerHTML = [
+    `<b>Model:</b> one LightGBM model per quantile (P5–P95), trained across all devices. Months ahead is a feature, so one model covers 1–6 months.`,
+    `<b>Inputs known at forecast time:</b> recent demand, same month last year, trend, calendar month and the weighted sales pipeline for the target month. All relative to each device's 12-month level so the trees can follow growth.`,
+    `<b>Backtest:</b> ${o.n} forecasts over ${D.backtest.backtest_origins.length} rolling origins. WAPE ${pct(o.wape_model, 1)} vs. ${pct(o.wape_seasonal_naive, 1)} for same month last year and ${pct(o.wape_moving_avg, 1)} for a 3-month average. Bias ${o.bias_model >= 0 ? "+" : "−"}${pct(Math.abs(o.bias_model), 1)}.`,
+    `<b>Calibration:</b> raw quantile intervals covered only ${pct(o.coverage_raw)} of actuals. A spread factor fitted on ${D.backtest.calibration_origins.length} earlier origins brings P10–P90 coverage to ${pct(o.coverage_p10_p90)} on the backtest months it never saw (target 80%).`,
+  ].map(s => `<li>${s}</li>`).join("");
+}
+function route() {
+  const tab = (location.hash || "#forecast").slice(1);
+  const valid = ["forecast", "risk", "shock", "agent", "method"].includes(tab) ? tab : "forecast";
+  $$("nav.steps a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === valid ? "page" : "false"));
+  $$("section.panel").forEach(s => s.hidden = s.id !== "p-" + valid);
+  if (valid === "forecast") renderForecast();
+  if (valid === "risk") renderRisk();
+  if (valid === "shock") renderShock();
+  if (valid === "agent") renderAgent();
+  if (valid === "method") renderMethod();
+}
+const bind = (id, key, fn) => $(id).addEventListener("input", e => { A[key] = +e.target.value; fn(); });
+bind("#pLost", "pLost", renderRisk); bind("#hold", "hold", renderRisk); bind("#obs", "obs", renderRisk);
+$("#shSup").innerHTML = D.suppliers.map(s => `<option value="${s.id}" ${s.id === S.sup ? "selected" : ""}>${esc(s.name)} (${esc(s.region)})</option>`).join("");
+$("#shSup").onchange = e => { S.sup = e.target.value; renderShock(); };
+$("#lateCost").oninput = e => { S.lateCost = +e.target.value; renderShock(); };
+$("#shDelay").oninput = e => { S.delay = +e.target.value; renderShock(); };
+$$(".seg [data-dl]").forEach(b => b.onclick = () => { S.dl = +b.dataset.dl; $$(".seg [data-dl]").forEach(x => x.setAttribute("aria-pressed", x === b)); renderShock(); });
+$("#limit").oninput = e => { LIMIT = +e.target.value; renderAgent(); };
+window.addEventListener("hashchange", route);
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(route, 150); });
+
+PLAN = buyPlan(); SC = scenario(); renderKpis();
+route();
+})();
+</script>
+
+</body>
+</html>

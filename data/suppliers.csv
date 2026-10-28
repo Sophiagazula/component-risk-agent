@@ -1,0 +1,8 @@
+supplier_id,name,region,on_time_rate
+S1,Cellular modem supplier,Taiwan,0.72
+S2,Silicon distributor,Singapore,0.85
+S3,Microcontroller supplier,Malaysia,0.9
+S4,Camera module supplier,China,0.78
+S5,GNSS supplier,Korea,0.92
+S6,Enclosure molder (JDM),Mexico,0.95
+S7,Battery & sensor supplier,Japan,0.88

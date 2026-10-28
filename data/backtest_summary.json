@@ -1,0 +1,158 @@
+{
+  "backtest_origins": [
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04"
+  ],
+  "calibration_origins": [
+    "2025-01",
+    "2025-02",
+    "2025-03",
+    "2025-04",
+    "2025-05",
+    "2025-06",
+    "2025-07",
+    "2025-08"
+  ],
+  "interval_scale": 1.55,
+  "overall": {
+    "wape_model": 0.20325947846471665,
+    "wape_seasonal_naive": 0.4250438589610248,
+    "wape_moving_avg": 0.45359163592771046,
+    "bias_model": -0.07241624347906325,
+    "coverage_p10_p90": 0.8680555555555556,
+    "coverage_raw": 0.6840277777777778,
+    "n": 288
+  },
+  "by_product": {
+    "GW-PRO": {
+      "wape_model": 0.10831827379361088,
+      "wape_seasonal_naive": 0.2741780632354485,
+      "wape_moving_avg": 0.2119434132127031,
+      "bias_model": -0.05491507347024841,
+      "coverage_p10_p90": 0.8541666666666666,
+      "coverage_raw": 0.6458333333333334,
+      "n": 48
+    },
+    "GW-LITE": {
+      "wape_model": 0.10830013167690591,
+      "wape_seasonal_naive": 0.1732803276713649,
+      "wape_moving_avg": 0.20424045295747503,
+      "bias_model": -0.023333858115583656,
+      "coverage_p10_p90": 0.8125,
+      "coverage_raw": 0.7083333333333334,
+      "n": 48
+    },
+    "CAM-RD": {
+      "wape_model": 0.16830692003103767,
+      "wape_seasonal_naive": 0.3338109558989111,
+      "wape_moving_avg": 0.31507592322202116,
+      "bias_model": 0.06004302523997738,
+      "coverage_p10_p90": 0.9583333333333334,
+      "coverage_raw": 0.7916666666666666,
+      "n": 48
+    },
+    "CAM-DUAL": {
+      "wape_model": 0.16242811250382364,
+      "wape_seasonal_naive": 0.6018167786131723,
+      "wape_moving_avg": 0.2343786218989727,
+      "bias_model": -0.07852753317591289,
+      "coverage_p10_p90": 0.7291666666666666,
+      "coverage_raw": 0.4791666666666667,
+      "n": 48
+    },
+    "TAG-AST": {
+      "wape_model": 0.39113976247703547,
+      "wape_seasonal_naive": 0.6546721664114573,
+      "wape_moving_avg": 1.1223088325547919,
+      "bias_model": -0.25283846458586,
+      "coverage_p10_p90": 0.8958333333333334,
+      "coverage_raw": 0.8125,
+      "n": 48
+    },
+    "SNS-ENV": {
+      "wape_model": 0.6154680902309244,
+      "wape_seasonal_naive": 0.5711270125223613,
+      "wape_moving_avg": 0.7053309481216458,
+      "bias_model": -0.12838564756778215,
+      "coverage_p10_p90": 0.9583333333333334,
+      "coverage_raw": 0.6666666666666666,
+      "n": 48
+    }
+  },
+  "by_horizon": {
+    "1": {
+      "wape_model": 0.2141003907598079,
+      "wape_seasonal_naive": 0.4227103179478016,
+      "wape_moving_avg": 0.4198243674361295,
+      "bias_model": -0.027983490574071547,
+      "coverage_p10_p90": 0.8958333333333334,
+      "coverage_raw": 0.7083333333333334,
+      "n": 48
+    },
+    "2": {
+      "wape_model": 0.22643934042287886,
+      "wape_seasonal_naive": 0.4319058471729752,
+      "wape_moving_avg": 0.4508565090011749,
+      "bias_model": -0.019991816010665114,
+      "coverage_p10_p90": 0.8958333333333334,
+      "coverage_raw": 0.6458333333333334,
+      "n": 48
+    },
+    "3": {
+      "wape_model": 0.20217235258879743,
+      "wape_seasonal_naive": 0.43920644011368687,
+      "wape_moving_avg": 0.44503619174039716,
+      "bias_model": -0.1173252198203453,
+      "coverage_p10_p90": 0.8541666666666666,
+      "coverage_raw": 0.6875,
+      "n": 48
+    },
+    "4": {
+      "wape_model": 0.15784027129717687,
+      "wape_seasonal_naive": 0.41468150674685095,
+      "wape_moving_avg": 0.4642511643678505,
+      "bias_model": -0.0485262438438486,
+      "coverage_p10_p90": 0.9166666666666666,
+      "coverage_raw": 0.7291666666666666,
+      "n": 48
+    },
+    "5": {
+      "wape_model": 0.18944940376353978,
+      "wape_seasonal_naive": 0.4102364801881516,
+      "wape_moving_avg": 0.46470675405008777,
+      "bias_model": -0.09505921586119669,
+      "coverage_p10_p90": 0.8541666666666666,
+      "coverage_raw": 0.6666666666666666,
+      "n": 48
+    },
+    "6": {
+      "wape_model": 0.22392532130960033,
+      "wape_seasonal_naive": 0.4292004912680107,
+      "wape_moving_avg": 0.47784709873198017,
+      "bias_model": -0.12530227888203507,
+      "coverage_p10_p90": 0.7916666666666666,
+      "coverage_raw": 0.6666666666666666,
+      "n": 48
+    }
+  },
+  "final_interval_scale": 1.4,
+  "feature_importance": {
+    "pipeline": 0.2714,
+    "same_month_ly": 0.1836,
+    "target_month": 0.1158,
+    "trend_yoy": 0.1136,
+    "product": 0.1111,
+    "horizon": 0.0533,
+    "mean6": 0.0484,
+    "lag2": 0.0392,
+    "mean3": 0.0288,
+    "lag0": 0.0203,
+    "lag1": 0.0144
+  }
+}

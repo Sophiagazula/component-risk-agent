@@ -1,0 +1,7 @@
+product_id,name,base,growth,revenue_per_unit,margin_per_unit,deal_rate,deal_size,season
+GW-PRO,Vehicle Gateway Pro,5200,0.22,1150,520,0.35,2600,q4
+GW-LITE,Vehicle Gateway Lite,2600,0.15,700,280,0.25,1400,q4
+CAM-RD,Road-Facing Dashcam,3400,0.34,1600,760,0.4,2200,q4
+CAM-DUAL,Dual-Facing Dashcam,1900,0.48,2200,1080,0.35,1500,q4
+TAG-AST,Asset Tag,900,0.55,120,55,0.22,6000,spring
+SNS-ENV,Environmental Sensor,160,0.3,350,150,0.15,900,spring
