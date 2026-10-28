@@ -2,7 +2,7 @@
 
 **From probabilistic demand forecasts to component shortage risk, cost-based buy decisions and a tiered-autonomy agent, for a connected-hardware supply chain.**
 
-Live demo: `https://<your-github-username>.github.io/component-risk-agent/`
+**Live demo:** https://sophiagazula.github.io/component-risk-agent/
 
 > All data is synthetic. Product, part and supplier names are generic.
 
