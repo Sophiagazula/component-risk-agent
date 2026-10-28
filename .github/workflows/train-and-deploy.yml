@@ -1,7 +1,7 @@
 name: Train, gate and deploy
 
-# Retrains the forecast, checks it against baselines, and only then
-# republishes the app. Runs on every push, on demand, and monthly.
+# Retrains the forecast, tests it, checks it against baselines, and only
+# then republishes the app. Runs on every push, on demand, and monthly.
 on:
   push:
     branches: [main]
@@ -29,14 +29,27 @@ jobs:
           python-version: "3.13"
           cache: pip
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Build data
         run: python src/simulate_supply_chain.py
 
       - name: Train models and backtest
         run: python src/forecast.py
+
+      - name: Tests (data, leakage, model export)
+        run: pytest -q tests
+
+      - name: Tests (browser engine)
+        run: node --test tests/engine.test.mjs
+
+      - name: Feature ablation
+        run: python src/evaluate.py
 
       - name: Quality gate
         run: python src/quality_gate.py
@@ -47,13 +60,15 @@ jobs:
       - name: Build site
         run: python src/build_site.py
 
-      - name: Save models and model card
+      - name: Save models, model card and evaluation
         uses: actions/upload-artifact@v4
         with:
           name: models-${{ github.sha }}
           path: |
             models/
+            reports/
             data/backtest_summary.json
+            data/evaluation.json
 
       - uses: actions/configure-pages@v5
 
