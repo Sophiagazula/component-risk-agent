@@ -42,7 +42,7 @@ button, input, select { font: inherit; color: inherit; }
 a { color: var(--accent); }
 
 /* ---- shell ---- */
-.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; background: linear-gradient(90deg, var(--nav) 0 248px, var(--canvas) 248px); }
 .side { background: var(--nav); color: var(--nav-ink); position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 18px 12px calc(16px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
 .brandmark { display: flex; gap: 10px; align-items: center; padding: 2px 8px 18px; }
 .logo { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; background: var(--nav-ink-strong); color: var(--nav); font-weight: 700; font-size: 12.5px; letter-spacing: .02em; flex: 0 0 auto; }
@@ -233,7 +233,7 @@ ul.clean li, ol.clean li { margin-bottom: 5px; }
   .flow > div + div { border-left: 0; border-top: 1px solid var(--line); }
 }
 @media (max-width: 820px) {
-  .app { grid-template-columns: minmax(0, 1fr); }
+  .app { grid-template-columns: minmax(0, 1fr); background: var(--canvas); }
   .side { position: sticky; top: 0; height: auto; z-index: 30; flex-direction: row; align-items: center; gap: 8px; padding: calc(8px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); overflow-x: auto; }
   .brandmark { padding: 0 8px 0 0; }
   .brandmark div, .side-foot, .side-nav .gap { display: none; }
